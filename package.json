@@ -15,8 +15,5 @@
     },
     "optionalDependencies": {
         "@laravel/multiplex": "^0.4.1"
-    },
-    "dependencies": {
-        "@rolldown/binding-darwin-x64": "^1.2.8"
     }
 }

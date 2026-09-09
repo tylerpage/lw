@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\SiteSetting;
+use App\Services\MaintenanceModeService;
 use BackedEnum;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -45,6 +46,8 @@ class ManageSiteSettings extends Page implements HasForms
             'linkedin_url' => SiteSetting::get('linkedin_url'),
             'analytics_enabled' => SiteSetting::get('analytics_enabled', false),
             'easter_eggs_enabled' => SiteSetting::get('easter_eggs_enabled', false),
+            'maintenance_mode' => SiteSetting::get('maintenance_mode', false),
+            'maintenance_allowlist_ips' => implode("\n", SiteSetting::get('maintenance_allowlist_ips', [])),
         ]);
     }
 
@@ -60,6 +63,14 @@ class ManageSiteSettings extends Page implements HasForms
                 TextInput::make('linkedin_url')->url(),
                 Toggle::make('analytics_enabled'),
                 Toggle::make('easter_eggs_enabled'),
+                Toggle::make('maintenance_mode')
+                    ->label('Maintenance mode')
+                    ->helperText('Shows a minimal logo page on the public site. Admin is not affected.'),
+                Textarea::make('maintenance_allowlist_ips')
+                    ->label('Maintenance bypass IPs')
+                    ->helperText('One IP address per line. These visitors can view the public site while maintenance mode is on.')
+                    ->rows(4)
+                    ->columnSpanFull(),
             ])
             ->statePath('data');
     }
@@ -69,6 +80,14 @@ class ManageSiteSettings extends Page implements HasForms
         $state = $this->form->getState();
 
         foreach ($state as $key => $value) {
+            if ($key === 'maintenance_allowlist_ips') {
+                $value = app(MaintenanceModeService::class)->normalizeIpList($value);
+
+                SiteSetting::set($key, $value);
+
+                continue;
+            }
+
             SiteSetting::set($key, $value);
         }
 

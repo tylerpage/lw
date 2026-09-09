@@ -12,24 +12,31 @@ use App\Http\Controllers\RssController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\WorkController;
+use App\Http\Middleware\EnsureSiteIsNotInMaintenanceMode;
+use App\Http\Middleware\HandleRedirects;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', HomeController::class)->name('home');
-Route::get('/about', fn (PageController $controller) => $controller->show('about'))->name('about');
-Route::get('/privacy', fn (PageController $controller) => $controller->show('privacy'))->name('privacy');
+Route::middleware([
+    EnsureSiteIsNotInMaintenanceMode::class,
+    HandleRedirects::class,
+])->group(function (): void {
+    Route::get('/', HomeController::class)->name('home');
+    Route::get('/about', fn (PageController $controller) => $controller->show('about'))->name('about');
+    Route::get('/privacy', fn (PageController $controller) => $controller->show('privacy'))->name('privacy');
 
-Route::get('/work', [WorkController::class, 'index'])->name('work.index');
-Route::get('/work/{slug}', [WorkController::class, 'show'])->name('work.show');
+    Route::get('/work', [WorkController::class, 'index'])->name('work.index');
+    Route::get('/work/{slug}', [WorkController::class, 'show'])->name('work.show');
 
-Route::get('/insights', [InsightsController::class, 'index'])->name('insights.index');
-Route::get('/insights/{slug}', [InsightsController::class, 'show'])->name('insights.show');
+    Route::get('/insights', [InsightsController::class, 'index'])->name('insights.index');
+    Route::get('/insights/{slug}', [InsightsController::class, 'show'])->name('insights.show');
 
-Route::get('/contact', [ContactController::class, 'show'])->name('contact');
-Route::get('/resume', ResumeController::class)->name('resume');
-Route::get('/search', SearchController::class)->name('search');
+    Route::get('/contact', [ContactController::class, 'show'])->name('contact');
+    Route::get('/resume', ResumeController::class)->name('resume');
+    Route::get('/search', SearchController::class)->name('search');
 
-Route::get('/preview/{type}/{id}', PreviewController::class)->name('preview');
-Route::get('/robots.txt', RobotsController::class)->name('robots');
-Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
-Route::get('/llms.txt', LlmsTxtController::class)->name('llms');
-Route::get('/feed.xml', RssController::class)->name('rss');
+    Route::get('/preview/{type}/{id}', PreviewController::class)->name('preview');
+    Route::get('/robots.txt', RobotsController::class)->name('robots');
+    Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
+    Route::get('/llms.txt', LlmsTxtController::class)->name('llms');
+    Route::get('/feed.xml', RssController::class)->name('rss');
+});

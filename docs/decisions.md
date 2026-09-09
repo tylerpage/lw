@@ -47,3 +47,7 @@ The in-app Content Assistant accepts reference images on each message. Files upl
 ## AI SEO quick actions on content edit screens
 
 Page, post, and case study edit/create forms include SEO tab quick buttons backed by `SeoGenerationService`. Suggestions are generated from the current title, excerpt/summary, and block content, then applied to the form only (not auto-saved). Modes: full SEO, meta only, Open Graph only, and improve existing.
+
+## Public maintenance mode with IP bypass
+
+Maintenance mode is toggled in Site Settings and shows a minimal public page (logo + site name only). Middleware is applied only to public routes in `routes/web.php`, so Filament admin and Livewire requests are unaffected. Additional bypass IPs are managed in Site Settings (one per line) with optional `MAINTENANCE_ALLOWLIST_IPS` env fallback.

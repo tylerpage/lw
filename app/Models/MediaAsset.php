@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\MediaLibraryMimeTypes;
+use App\Support\StorageUrl;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
@@ -23,7 +24,8 @@ class MediaAsset extends Model
     protected static function booted(): void
     {
         static::saving(function (MediaAsset $asset): void {
-            if ($asset->path && $asset->disk) {
+            if ($asset->path) {
+                $asset->disk = StorageUrl::resolveDisk($asset->path, $asset->disk);
                 $disk = Storage::disk($asset->disk);
 
                 if ($disk->exists($asset->path)) {
@@ -41,7 +43,7 @@ class MediaAsset extends Model
         });
 
         static::deleting(function (MediaAsset $asset): void {
-            Storage::disk($asset->disk)->delete($asset->path);
+            Storage::disk(StorageUrl::resolveDisk($asset->path, $asset->disk))->delete($asset->path);
         });
     }
 
@@ -57,7 +59,7 @@ class MediaAsset extends Model
 
     public function url(): string
     {
-        return Storage::disk($this->disk)->url($this->path);
+        return StorageUrl::urlForPath($this->path, $this->disk);
     }
 
     public function isImage(): bool

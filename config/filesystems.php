@@ -36,8 +36,18 @@ $disks = [
     's3' => $s3Disk,
 ];
 
-if (filled(env('AWS_BUCKET')) && ! array_key_exists($defaultFilesystemDisk, $disks)) {
-    $disks[$defaultFilesystemDisk] = $s3Disk;
+$cloudDiskNames = array_values(array_unique(array_filter([
+    $defaultFilesystemDisk,
+    env('CONTENT_ASSISTANT_MEDIA_DISK'),
+    env('CONTENT_ASSISTANT_ATTACHMENT_DISK'),
+])));
+
+foreach ($cloudDiskNames as $cloudDiskName) {
+    if ($cloudDiskName === null || $cloudDiskName === '' || array_key_exists($cloudDiskName, $disks)) {
+        continue;
+    }
+
+    $disks[$cloudDiskName] = filled(env('AWS_BUCKET')) ? $s3Disk : $disks['public'];
 }
 
 return [

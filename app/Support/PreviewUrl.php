@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\URL;
 
 class PreviewUrl
 {
-    public static function for(Model $model, int $expiresMinutes = 60): string
+    public static function for(Model $model, int $expiresMinutes = 60, ?int $revisionId = null): string
     {
         $type = match ($model->getTable()) {
             'pages' => 'page',
@@ -16,10 +16,16 @@ class PreviewUrl
             default => throw new \InvalidArgumentException('Unsupported preview model.'),
         };
 
+        $parameters = ['type' => $type, 'id' => $model->getKey()];
+
+        if ($revisionId !== null) {
+            $parameters['revision'] = $revisionId;
+        }
+
         return URL::temporarySignedRoute(
             'preview',
             now()->addMinutes($expiresMinutes),
-            ['type' => $type, 'id' => $model->getKey()],
+            $parameters,
         );
     }
 }

@@ -10,7 +10,15 @@ return [
 
     'model' => env('CONTENT_ASSISTANT_MODEL', 'gpt-4.1-mini'),
 
+    'seo_model' => env('CONTENT_ASSISTANT_SEO_MODEL'),
+
     'timeout' => (int) env('CONTENT_ASSISTANT_TIMEOUT', 60),
+
+    /*
+    | When true, chat messages are processed on the queue and the UI updates via
+    | websocket broadcast (with polling fallback). Set false for synchronous tests.
+    */
+    'async' => env('CONTENT_ASSISTANT_ASYNC', true),
 
     'limits' => [
         'max_tokens_per_request' => (int) env('CONTENT_ASSISTANT_MAX_TOKENS', 4096),

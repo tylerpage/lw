@@ -63,6 +63,24 @@ class FilamentBlockBuilderTest extends TestCase
         $this->assertStringContainsString('headline is required', $validator->errors()->first('blocks'));
     }
 
+    public function test_valid_block_array_rule_accepts_filament_builder_shape(): void
+    {
+        $validator = Validator::make([
+            'blocks' => BlockStateAdapter::toBuilder([
+                [
+                    'type' => 'hero',
+                    'enabled' => true,
+                    'headline' => '[DRAFT] Ecommerce strategy that works in the real world.',
+                    'subheadline' => 'Example subheadline',
+                ],
+            ]),
+        ], [
+            'blocks' => [new ValidBlockArray],
+        ]);
+
+        $this->assertTrue($validator->passes());
+    }
+
     public function test_all_registered_block_types_have_catalog_samples(): void
     {
         $this->assertCount(18, BlockRegistry::all());

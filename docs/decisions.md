@@ -28,7 +28,7 @@ Core pages, demo posts, and demo projects are seeded as **published** so the sit
 
 ## In-site conversational content assistant (Phase 1–2)
 
-Built a proposal-first content assistant for Filament using a fake provider by default (`CONTENT_ASSISTANT_DRIVER=fake`). Set `CONTENT_ASSISTANT_DRIVER=ai` with `OPENAI_API_KEY` (or another Laravel AI provider) to use the real `LaravelAiContentAssistantGateway` and structured `ContentProposalAgent`. The engine stores conversations/proposals, validates structured operations against existing page-builder schemas, records audit events, saves drafts only (never auto-publishes), and exposes safe Artisan inspection/proposal commands. Approval/publish confirmation tokens and blog/case-study creation flows remain for later phases.
+Built a proposal-first content assistant for Filament using a fake provider by default (`CONTENT_ASSISTANT_DRIVER=fake`). Set `CONTENT_ASSISTANT_DRIVER=ai` with `OPENAI_API_KEY` (or another Laravel AI provider) to use the real `LaravelAiContentAssistantGateway` and structured `ContentProposalAgent`. The engine stores conversations/proposals, validates structured operations against existing page-builder schemas, records audit events, and exposes safe Artisan inspection/proposal commands. Editors can save validated proposals as drafts or use Approve & publish to apply and go live; authors can draft but not publish.
 
 ## Demo content is clearly fictional
 

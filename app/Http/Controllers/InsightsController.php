@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\ContentAssistant\Services\ContentRevisionService;
 use App\Models\Category;
 use App\Models\Post;
 use App\Services\PageBlockRenderer;
@@ -38,6 +39,7 @@ class InsightsController extends Controller
     public function show(string $slug, PageBlockRenderer $renderer, SeoService $seo): View
     {
         $post = Post::query()->published()->where('slug', $slug)->with(['author', 'categories'])->firstOrFail();
+        $post = app(ContentRevisionService::class)->forPublicDisplay($post);
 
         return view('insights.show', [
             'post' => $post,

@@ -12,7 +12,7 @@
                 </li>
                 <li class="content-assistant__step">
                     <span class="content-assistant__step-number">3</span>
-                    <span><strong class="text-gray-950 dark:text-white">Save draft</strong> to preview on the live site.</span>
+                    <span><strong class="text-gray-950 dark:text-white">Approve</strong> to publish, or save a draft to preview first.</span>
                 </li>
             </ol>
         </x-filament::section>
@@ -35,19 +35,27 @@
                                 <div class="content-assistant__conversation-meta">{{ $conversation->last_activity_at?->diffForHumans() }}</div>
                             </button>
                         @empty
-                            <p class="content-assistant__empty-text">No conversations yet. Pick a page below and start one.</p>
+                            <p class="content-assistant__empty-text">No conversations yet. Pick content below and start one.</p>
                         @endforelse
                     </div>
                 </x-filament::section>
 
                 <x-filament::section
-                    heading="Page to edit"
-                    description="The assistant only changes content on the selected page."
+                    heading="Content to edit"
+                    description="The assistant only changes content on the selected record."
                 >
                     <div class="content-assistant__stack">
                         <x-filament::input.wrapper>
-                            <x-filament::input.select wire:model.live="targetPageId">
-                                @foreach ($this->pageOptions as $id => $title)
+                            <x-filament::input.select wire:model.live="targetType">
+                                @foreach (\App\Enums\ContentTargetType::cases() as $type)
+                                    <option value="{{ $type->value }}">{{ $type->label() }}</option>
+                                @endforeach
+                            </x-filament::input.select>
+                        </x-filament::input.wrapper>
+
+                        <x-filament::input.wrapper>
+                            <x-filament::input.select wire:model.live="targetId">
+                                @foreach ($this->targetOptions as $id => $title)
                                     <option value="{{ $id }}">{{ $title }}</option>
                                 @endforeach
                             </x-filament::input.select>
@@ -60,7 +68,7 @@
                 </x-filament::section>
             </div>
 
-            <x-filament::section class="content-assistant__chat">
+            <x-filament::section class="content-assistant__chat" wire:poll.2s="pollForProposal">
                 <x-slot:heading>Chat</x-slot:heading>
 
                 @if ($this->targetLabel())
@@ -123,10 +131,19 @@
                         <div class="content-assistant__chat-empty">
                             <p class="font-medium text-gray-950 dark:text-white">Start by describing a content change</p>
                             <p class="content-assistant__empty-text mt-2 max-w-md">
-                                Example: “Make the homepage hero focus more on connecting marketing and engineering, but keep both CTAs.”
+                                Example: “Draft a blog post intro about aligning marketing and engineering teams.”
                             </p>
                         </div>
                     @endforelse
+
+                    @if ($isProcessing)
+                        <div class="content-assistant__message-row content-assistant__message-row--assistant">
+                            <div class="content-assistant__message content-assistant__message--assistant">
+                                <div class="content-assistant__message-label content-assistant__message-label--assistant">Assistant</div>
+                                <div class="content-assistant__message-body content-assistant__processing">{{ $processingStatus }}</div>
+                            </div>
+                        </div>
+                    @endif
                 </div>
 
                 <x-slot:footer>
@@ -199,8 +216,8 @@
 
                         <div class="content-assistant__composer-footer">
                             <p class="content-assistant__hint">Content changes only — not layout or code.</p>
-                            <x-filament::button type="submit" wire:loading.attr="disabled" wire:target="sendMessage,attachments">
-                                <span wire:loading.remove wire:target="sendMessage,attachments">Send</span>
+                            <x-filament::button type="submit" wire:loading.attr="disabled" wire:target="sendMessage,attachments" :disabled="$isProcessing">
+                                <span wire:loading.remove wire:target="sendMessage,attachments">{{ $isProcessing ? 'Working…' : 'Send' }}</span>
                                 <span wire:loading wire:target="sendMessage,attachments">Sending…</span>
                             </x-filament::button>
                         </div>
@@ -302,16 +319,29 @@
                 @if ($this->hasProposal())
                     <x-slot:footer>
                         <div class="content-assistant__actions">
+                            @if ($this->canApproveAndPublish())
+                                <x-filament::button
+                                    wire:click="approveAndPublish"
+                                    wire:confirm="Publish these changes to the live site?"
+                                    class="w-full"
+                                >
+                                    Approve & publish
+                                </x-filament::button>
+                            @endif
+
                             <x-filament::button
                                 wire:click="applyDraft"
                                 class="w-full"
+                                color="gray"
                                 :disabled="! $this->canSaveDraft()"
                             >
                                 Save as draft
                             </x-filament::button>
 
                             @if (! $this->canSaveDraft())
-                                <p class="content-assistant__hint text-center">Validate the proposal before saving.</p>
+                                <p class="content-assistant__hint text-center">Validate the proposal before saving or publishing.</p>
+                            @elseif (! $this->canApproveAndPublish())
+                                <p class="content-assistant__hint text-center">Only editors can approve and publish. You can still save a draft.</p>
                             @endif
 
                             <div class="content-assistant__actions-row">
@@ -337,6 +367,19 @@
         $wire.on('open-preview', ({ url }) => {
             window.open(url, '_blank', 'noopener,noreferrer');
         });
+
+        if (window.Echo && @js(auth()->id())) {
+            window.Echo.private(`content-assistant.${@js(auth()->id())}`)
+                .listen('.assistant.processing', (event) => {
+                    $wire.handleAssistantBroadcast(event);
+                })
+                .listen('.assistant.proposal.ready', (event) => {
+                    $wire.handleAssistantBroadcast(event);
+                })
+                .listen('.assistant.message.failed', (event) => {
+                    $wire.handleAssistantBroadcast(event);
+                });
+        }
     </script>
     @endscript
 </x-filament-panels::page>

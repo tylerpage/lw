@@ -43,6 +43,12 @@ class PostResource extends Resource
                 TextColumn::make('status')
                     ->badge()
                     ->sortable(),
+                TextColumn::make('has_unpublished_changes')
+                    ->label('Draft pending')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'Unpublished edits' : '')
+                    ->color('warning')
+                    ->toggleable(),
                 TextColumn::make('published_at')
                     ->dateTime()
                     ->sortable(),

@@ -98,6 +98,10 @@
     @apply whitespace-pre-wrap leading-relaxed;
 }
 
+.content-assistant__processing {
+    @apply italic text-gray-600 dark:text-gray-300;
+}
+
 .content-assistant__composer {
     @apply border-t border-gray-200 pt-4 dark:border-white/10;
 }

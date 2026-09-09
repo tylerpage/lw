@@ -8,9 +8,7 @@ use App\ContentAssistant\Support\ContentTargetResolver;
 use App\Enums\PublishStatus;
 use App\Models\ContentAssistantAuditEvent;
 use App\Models\Page;
-use App\Models\PageRevision;
 use App\Models\Post;
-use App\Models\PostRevision;
 use App\Models\Project;
 use App\Models\User;
 use App\PageBlocks\BlockRegistry;
@@ -31,6 +29,7 @@ class ContentImportService
     ];
 
     public function __construct(
+        private ContentRevisionService $revisionService,
         private ContentClaimValidator $claimValidator,
     ) {}
 
@@ -143,7 +142,16 @@ class ContentImportService
         }
 
         DB::transaction(function () use ($target, $data, $user, $mode): void {
-            $this->snapshotRevision($target, $user);
+            $wasPublic = $target->isPubliclyVisible();
+
+            if ($target instanceof Page || $target instanceof Post) {
+                if ($wasPublic && ! $target->has_unpublished_changes) {
+                    $revision = $this->revisionService->record($target, $user, 'content_import', 'Live version (on site)');
+                    $this->revisionService->pinPublishedRevision($target, $revision);
+                } else {
+                    $this->revisionService->record($target, $user, 'content_import');
+                }
+            }
 
             if ($mode !== ContentImportMode::BlocksOnly) {
                 $this->applyGeneralFields($target, $data->general);
@@ -151,7 +159,12 @@ class ContentImportService
 
             $this->applyBlocks($target, $data->blocks, $mode);
 
-            $target->status = PublishStatus::Draft;
+            if ($wasPublic && ($target instanceof Page || $target instanceof Post)) {
+                $target->status = PublishStatus::Published;
+            } else {
+                $target->status = PublishStatus::Draft;
+            }
+
             $target->save();
         });
 
@@ -248,28 +261,6 @@ class ContentImportService
         return match ($target::class) {
             Page::class, Project::class => $target->blocks ?? [],
             Post::class => $target->body ?? [],
-        };
-    }
-
-    private function snapshotRevision(Page|Post|Project $target, User $user): void
-    {
-        match ($target::class) {
-            Page::class => PageRevision::query()->create([
-                'page_id' => $target->id,
-                'user_id' => $user->id,
-                'title' => $target->title,
-                'blocks' => $target->blocks,
-            ]),
-            Post::class => PostRevision::query()->create([
-                'post_id' => $target->id,
-                'user_id' => $user->id,
-                'data' => [
-                    'title' => $target->title,
-                    'excerpt' => $target->excerpt,
-                    'body' => $target->body,
-                ],
-            ]),
-            Project::class => null,
         };
     }
 }

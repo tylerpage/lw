@@ -3,6 +3,8 @@
 namespace App\ContentAssistant\Services;
 
 use App\ContentAssistant\Support\ContentTargetResolver;
+use App\Enums\ContentTargetType;
+use App\Enums\PublishStatus;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Project;
@@ -14,6 +16,16 @@ class ContentWorkshopContextBuilder
         private ContentContextBuilder $contextBuilder,
         private BlockCatalogExporter $blockCatalogExporter,
     ) {}
+
+    /**
+     * @param  array<string, mixed>  $formData
+     */
+    public function buildForDraft(ContentTargetType $targetType, array $formData): string
+    {
+        $target = $this->draftModelFromForm($targetType, $formData);
+
+        return $this->build($target);
+    }
 
     public function build(Model $target): string
     {
@@ -130,6 +142,28 @@ class ContentWorkshopContextBuilder
         $lines[] = '- List any uncertain claims in `unverified_claims`.';
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * @param  array<string, mixed>  $formData
+     */
+    private function draftModelFromForm(ContentTargetType $targetType, array $formData): Page|Post|Project
+    {
+        $modelClass = $targetType->modelClass();
+
+        /** @var Page|Post|Project $target */
+        $target = new $modelClass;
+        $target->fill($formData);
+        $target->status = PublishStatus::tryFrom((string) ($formData['status'] ?? '')) ?? PublishStatus::Draft;
+        $target->exists = false;
+
+        if ($target instanceof Post) {
+            $target->body = $formData['body'] ?? [];
+        } else {
+            $target->blocks = $formData['blocks'] ?? [];
+        }
+
+        return $target;
     }
 
     /**

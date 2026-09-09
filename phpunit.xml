@@ -33,5 +33,6 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="CONTENT_ASSISTANT_DRIVER" value="fake"/>
+        <env name="CONTENT_ASSISTANT_ASYNC" value="false"/>
     </php>
 </phpunit>

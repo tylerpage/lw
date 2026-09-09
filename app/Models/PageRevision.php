@@ -7,11 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PageRevision extends Model
 {
-    protected $fillable = ['page_id', 'user_id', 'title', 'blocks'];
+    protected $fillable = ['page_id', 'user_id', 'label', 'source', 'title', 'blocks', 'snapshot'];
 
     protected function casts(): array
     {
-        return ['blocks' => 'array'];
+        return [
+            'blocks' => 'array',
+            'snapshot' => 'array',
+        ];
     }
 
     public function page(): BelongsTo

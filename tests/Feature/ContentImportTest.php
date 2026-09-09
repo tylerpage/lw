@@ -80,7 +80,6 @@ class ContentImportTest extends TestCase
 
         $page->refresh();
 
-        $this->assertSame(PublishStatus::Draft, $page->status);
         $this->assertSame('Imported headline', $page->blocks[0]['headline'] ?? null);
         $this->assertTrue(
             ContentAssistantAuditEvent::query()
@@ -89,6 +88,10 @@ class ContentImportTest extends TestCase
         );
 
         if ($originalStatus === PublishStatus::Published) {
+            $this->assertSame(PublishStatus::Published, $page->status);
+            $this->assertTrue($page->has_unpublished_changes);
+            $this->assertNotNull($page->published_revision_id);
+        } else {
             $this->assertSame(PublishStatus::Draft, $page->status);
         }
     }

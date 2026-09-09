@@ -6,9 +6,7 @@ use App\Enums\ContentProposalStatus;
 use App\Enums\PublishStatus;
 use App\Models\ContentProposal;
 use App\Models\Page;
-use App\Models\PageRevision;
 use App\Models\Post;
-use App\Models\PostRevision;
 use App\Models\Project;
 use App\Models\Redirect;
 use App\Models\User;
@@ -17,7 +15,11 @@ use Illuminate\Support\Facades\DB;
 
 class ApplyProposalToDraft
 {
-    public function apply(ContentProposal $proposal, User $user): ContentProposal
+    public function __construct(
+        private ContentRevisionService $revisionService,
+    ) {}
+
+    public function apply(ContentProposal $proposal, User $user, bool $publish = false): ContentProposal
     {
         if ($proposal->status !== ContentProposalStatus::Validated) {
             throw new \RuntimeException('Only validated proposals can be applied.');
@@ -35,20 +37,62 @@ class ApplyProposalToDraft
             throw new \RuntimeException('The underlying content changed. Regenerate the proposal.');
         }
 
-        DB::transaction(function () use ($proposal, $target, $user): void {
-            $this->snapshotRevision($target, $user);
+        DB::transaction(function () use ($proposal, $target, $user, $publish): void {
+            $wasPublic = $target->isPubliclyVisible();
+
+            if ($target instanceof Page || $target instanceof Post) {
+                $this->recordPreApplyRevision($target, $user, $wasPublic, $publish);
+            }
 
             foreach ($proposal->operations as $operationModel) {
                 $this->applyOperation($target, $operationModel->operation);
             }
 
-            $target->status = PublishStatus::Draft;
+            if ($publish) {
+                $target->status = PublishStatus::Published;
+                $target->published_at = $target->published_at ?? now();
+
+                if ($target instanceof Page || $target instanceof Post) {
+                    $this->revisionService->clearUnpublishedChanges($target);
+                }
+            } elseif ($wasPublic && ($target instanceof Page || $target instanceof Post)) {
+                $target->status = PublishStatus::Published;
+            } else {
+                $target->status = PublishStatus::Draft;
+            }
+
             $target->save();
 
-            $proposal->update(['status' => ContentProposalStatus::DraftSaved]);
+            $proposal->update([
+                'status' => $publish
+                    ? ContentProposalStatus::Published
+                    : ContentProposalStatus::DraftSaved,
+            ]);
         });
 
         return $proposal->fresh(['operations']);
+    }
+
+    private function recordPreApplyRevision(Page|Post $target, User $user, bool $wasPublic, bool $publish): void
+    {
+        if ($publish && $target->has_unpublished_changes) {
+            $this->revisionService->record($target, $user, 'publish', 'Published version');
+
+            return;
+        }
+
+        if ($wasPublic && ! $publish) {
+            if (! $target->has_unpublished_changes) {
+                $revision = $this->revisionService->record($target, $user, 'ai_assistant', 'Live version (on site)');
+                $this->revisionService->pinPublishedRevision($target, $revision);
+            } else {
+                $this->revisionService->record($target, $user, 'ai_assistant', 'Before additional AI changes');
+            }
+
+            return;
+        }
+
+        $this->revisionService->record($target, $user, 'ai_assistant');
     }
 
     /**
@@ -166,28 +210,6 @@ class ApplyProposalToDraft
                 ['to_path' => $this->publicPath($target, $newSlug), 'status_code' => 301]
             );
         }
-    }
-
-    private function snapshotRevision(Page|Post|Project $target, User $user): void
-    {
-        match ($target::class) {
-            Page::class => PageRevision::query()->create([
-                'page_id' => $target->id,
-                'user_id' => $user->id,
-                'title' => $target->title,
-                'blocks' => $target->blocks,
-            ]),
-            Post::class => PostRevision::query()->create([
-                'post_id' => $target->id,
-                'user_id' => $user->id,
-                'data' => [
-                    'title' => $target->title,
-                    'excerpt' => $target->excerpt,
-                    'body' => $target->body,
-                ],
-            ]),
-            Project::class => null,
-        };
     }
 
     /**

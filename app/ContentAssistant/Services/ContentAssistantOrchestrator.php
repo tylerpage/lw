@@ -4,6 +4,8 @@ namespace App\ContentAssistant\Services;
 
 use App\ContentAssistant\Contracts\ContentAssistantGateway;
 use App\ContentAssistant\DTO\ContentAssistantRequest;
+use App\ContentAssistant\DTO\ContentProposalData;
+use App\ContentAssistant\Jobs\ProcessAssistantMessageJob;
 use App\ContentAssistant\Support\ContentRevisionTracker;
 use App\ContentAssistant\Support\ContentTargetResolver;
 use App\Enums\AiConversationStatus;
@@ -17,6 +19,7 @@ use App\Models\ContentProposal;
 use App\Models\ContentProposalOperation;
 use App\Models\User;
 use App\Support\PreviewUrl;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -65,7 +68,7 @@ class ContentAssistantOrchestrator
         string $message,
         ?string $idempotencyKey = null,
         array $attachments = [],
-    ): ContentProposal {
+    ): ?ContentProposal {
         abort_unless($conversation->user_id === $user->id, 403);
 
         $target = $conversation->target_type && $conversation->target_id
@@ -92,15 +95,68 @@ class ContentAssistantOrchestrator
             'metadata' => $attachments !== [] ? ['attachments' => $attachments] : null,
         ]);
 
+        $conversation->update(['last_activity_at' => now()]);
+
+        $resolvedKey = $idempotencyKey ?? $this->generateIdempotencyKey();
+
+        if (config('content-assistant.async')) {
+            ProcessAssistantMessageJob::dispatch(
+                conversationId: $conversation->id,
+                userId: $user->id,
+                idempotencyKey: $resolvedKey,
+                attachments: $attachments,
+            );
+
+            return null;
+        }
+
+        return $this->generateProposal(
+            conversationId: $conversation->id,
+            user: $user,
+            idempotencyKey: $resolvedKey,
+            attachments: $attachments,
+        );
+    }
+
+    /**
+     * @param  array<int, array{path: string, url: string, original_name?: string, mime_type?: string, size?: int}>  $attachments
+     */
+    public function generateProposal(
+        int $conversationId,
+        User $user,
+        ?string $idempotencyKey = null,
+        array $attachments = [],
+    ): ContentProposal {
+        $conversation = AiConversation::query()->findOrFail($conversationId);
+        abort_unless($conversation->user_id === $user->id, 403);
+
+        $target = $conversation->target_type && $conversation->target_id
+            ? ContentTargetResolver::find($conversation->target_type, $conversation->target_id)
+            : null;
+
+        abort_if(! $target, 422, 'Conversation has no content target.');
+
+        if ($idempotencyKey) {
+            $existing = ContentProposal::query()->where('idempotency_key', $idempotencyKey)->first();
+            if ($existing) {
+                return $existing;
+            }
+        }
+
         $messages = $conversation->messages()->get()->map(fn (AiMessage $item): array => [
             'role' => $item->role->value,
             'content' => $item->content,
             'attachments' => $item->attachments(),
         ])->all();
 
-        $latestUserMessage = $message !== ''
-            ? $message
+        $latestUser = collect($messages)->reverse()->first(fn (array $item): bool => ($item['role'] ?? '') === 'user');
+        $latestUserMessage = filled($latestUser['content'] ?? null) && ($latestUser['content'] ?? '') !== '[Image reference attached]'
+            ? (string) $latestUser['content']
             : 'Review the attached image(s) and suggest relevant content updates.';
+
+        if ($attachments === [] && is_array($latestUser)) {
+            $attachments = $latestUser['attachments'] ?? [];
+        }
 
         $context = array_merge(
             $this->contextBuilder->build($target),
@@ -129,6 +185,16 @@ class ContentAssistantOrchestrator
             throw $exception;
         }
 
+        return $this->persistProposal($conversation, $user, $target, $proposalData, $idempotencyKey);
+    }
+
+    private function persistProposal(
+        AiConversation $conversation,
+        User $user,
+        Model $target,
+        ContentProposalData $proposalData,
+        ?string $idempotencyKey,
+    ): ContentProposal {
         if ($proposalData->assistantMessage) {
             AiMessage::query()->create([
                 'conversation_id' => $conversation->id,
@@ -225,11 +291,23 @@ class ContentAssistantOrchestrator
 
     public function applyDraft(ContentProposal $proposal, User $user): ContentProposal
     {
-        abort_unless($user->can('update', $proposal->target()), 403);
+        abort_unless($user->can('applyDraft', $proposal), 403);
 
         $applied = $this->applyProposalToDraft->apply($proposal, $user);
 
         ContentAssistantAuditEvent::record('assistant_draft_saved', $user, $applied);
+
+        return $applied;
+    }
+
+    public function approveAndPublish(ContentProposal $proposal, User $user): ContentProposal
+    {
+        abort_unless($user->can('publish', $proposal), 403);
+
+        $applied = $this->applyProposalToDraft->apply($proposal, $user, publish: true);
+
+        ContentAssistantAuditEvent::record('assistant_proposal_approved', $user, $applied);
+        ContentAssistantAuditEvent::record('assistant_proposal_published', $user, $applied);
 
         return $applied;
     }

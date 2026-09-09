@@ -3,17 +3,17 @@
 namespace App\Models;
 
 use App\Enums\PublishStatus;
+use App\Models\Concerns\HasContentRevisions;
 use App\Models\Concerns\HasPublishStatus;
 use App\Models\Concerns\HasSeoFields;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Page extends Model
 {
-    use HasPublishStatus, HasSeoFields;
+    use HasContentRevisions, HasPublishStatus, HasSeoFields;
 
     protected $fillable = [
-        'title', 'nav_label', 'slug', 'status', 'published_at', 'blocks',
+        'title', 'nav_label', 'slug', 'status', 'has_unpublished_changes', 'published_revision_id', 'published_at', 'blocks',
         'seo_title', 'seo_description', 'canonical_url', 'og_title', 'og_description', 'og_image',
         'template', 'index', 'follow',
     ];
@@ -24,13 +24,14 @@ class Page extends Model
             'status' => PublishStatus::class,
             'published_at' => 'datetime',
             'blocks' => 'array',
+            'has_unpublished_changes' => 'boolean',
             'index' => 'boolean',
             'follow' => 'boolean',
         ];
     }
 
-    public function revisions(): HasMany
+    protected function revisionModelClass(): string
     {
-        return $this->hasMany(PageRevision::class);
+        return PageRevision::class;
     }
 }

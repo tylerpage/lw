@@ -31,6 +31,6 @@ class ContentProposalPolicy
 
     public function publish(User $user, ContentProposal $proposal): bool
     {
-        return $this->approve($user, $proposal);
+        return $this->approve($user, $proposal) && $this->validate($user, $proposal);
     }
 }

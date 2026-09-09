@@ -11,6 +11,8 @@ use App\Enums\ContentTargetType;
 use App\Models\AiConversation;
 use App\Models\ContentProposal;
 use App\Models\Page;
+use App\Models\Post;
+use App\Models\Project;
 use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page as FilamentPage;
@@ -18,6 +20,7 @@ use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Url;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 
@@ -31,7 +34,7 @@ class ContentAssistant extends FilamentPage
 
     protected static ?string $title = 'AI Content Assistant';
 
-    protected ?string $subheading = 'Describe content changes in plain language, review the proposal, then save as a draft. Nothing publishes automatically.';
+    protected ?string $subheading = 'Describe content changes in plain language, review the proposal, then save a draft or approve to publish.';
 
     protected static ?int $navigationSort = 2;
 
@@ -41,9 +44,19 @@ class ContentAssistant extends FilamentPage
 
     public ?int $conversationId = null;
 
-    public ?int $targetPageId = null;
+    #[Url]
+    public string $targetType = 'page';
+
+    #[Url]
+    public ?int $targetId = null;
 
     public string $message = '';
+
+    public bool $isProcessing = false;
+
+    public string $processingStatus = 'Generating proposal…';
+
+    public ?string $processingStartedAt = null;
 
     /** @var array<int, TemporaryUploadedFile> */
     public array $attachments = [];
@@ -66,8 +79,15 @@ class ContentAssistant extends FilamentPage
 
     public function mount(): void
     {
-        $home = Page::query()->where('slug', 'home')->first();
-        $this->targetPageId = $home?->id;
+        if (! $this->targetId) {
+            $home = Page::query()->where('slug', 'home')->first();
+            $this->targetType = ContentTargetType::Page->value;
+            $this->targetId = $home?->id;
+        }
+
+        if ($this->targetId && request()->boolean('start')) {
+            $this->startConversation(app(ContentAssistantOrchestrator::class));
+        }
     }
 
     public function getConversationsProperty(): Collection
@@ -96,26 +116,44 @@ class ContentAssistant extends FilamentPage
         return $this->activeConversation?->latestProposal;
     }
 
-    public function getPageOptionsProperty(): array
+    public function getTargetTypeEnumProperty(): ContentTargetType
     {
-        return Page::query()
-            ->orderBy('title')
-            ->pluck('title', 'id')
-            ->all();
+        return ContentTargetType::tryFrom($this->targetType) ?? ContentTargetType::Page;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getTargetOptionsProperty(): array
+    {
+        return match ($this->targetTypeEnum) {
+            ContentTargetType::Page => Page::query()->orderBy('title')->pluck('title', 'id')->all(),
+            ContentTargetType::Post => Post::query()->orderBy('title')->pluck('title', 'id')->all(),
+            ContentTargetType::Project => Project::query()->orderBy('title')->pluck('title', 'id')->all(),
+        };
+    }
+
+    public function updatedTargetType(): void
+    {
+        $this->targetId = array_key_first($this->targetOptions) ?: null;
+        $this->conversationId = null;
+        $this->resetValidationState();
+        $this->isProcessing = false;
     }
 
     public function startConversation(ContentAssistantOrchestrator $orchestrator): void
     {
-        abort_if(! $this->targetPageId, 422, 'Select a page first.');
+        abort_if(! $this->targetId, 422, 'Select content to edit first.');
 
         $conversation = $orchestrator->startConversation(
             auth()->user(),
-            ContentTargetType::Page,
-            $this->targetPageId,
+            $this->targetTypeEnum,
+            $this->targetId,
         );
 
         $this->conversationId = $conversation->id;
         $this->resetValidationState();
+        $this->isProcessing = false;
 
         Notification::make()->title('Conversation started')->success()->send();
     }
@@ -160,6 +198,20 @@ class ContentAssistant extends FilamentPage
         $this->resetValidationState();
         $this->conversationId = $conversation->id;
 
+        if ($proposal === null) {
+            $this->isProcessing = true;
+            $this->processingStatus = 'Generating proposal…';
+            $this->processingStartedAt = now()->toIso8601String();
+
+            Notification::make()
+                ->title('Message sent')
+                ->body('The assistant is working on your proposal.')
+                ->success()
+                ->send();
+
+            return;
+        }
+
         $result = $orchestrator->validateProposal($proposal->fresh('operations'), auth()->user());
         $this->applyValidationResult($result);
 
@@ -167,6 +219,63 @@ class ContentAssistant extends FilamentPage
             ->title($result['valid'] ? 'Proposal ready for review' : 'Proposal needs revision')
             ->{$result['valid'] ? 'success' : 'warning'}()
             ->send();
+    }
+
+    public function pollForProposal(ContentAssistantOrchestrator $orchestrator): void
+    {
+        if (! $this->isProcessing || ! $this->conversationId || ! $this->processingStartedAt) {
+            return;
+        }
+
+        $proposal = ContentProposal::query()
+            ->where('conversation_id', $this->conversationId)
+            ->where('created_at', '>=', $this->processingStartedAt)
+            ->latest()
+            ->first();
+
+        if (! $proposal || $proposal->status === ContentProposalStatus::Proposed) {
+            return;
+        }
+
+        $this->finishProcessing($orchestrator, $proposal);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function handleAssistantBroadcast(array $payload): void
+    {
+        if (($payload['conversation_id'] ?? null) !== $this->conversationId) {
+            return;
+        }
+
+        if (isset($payload['status'])) {
+            $this->processingStatus = (string) $payload['status'];
+
+            return;
+        }
+
+        if (isset($payload['message']) && ! isset($payload['valid'])) {
+            $this->isProcessing = false;
+            Notification::make()->title('Assistant failed')->body((string) $payload['message'])->danger()->send();
+
+            return;
+        }
+
+        if (isset($payload['valid'])) {
+            $this->isProcessing = false;
+            $this->applyValidationResult([
+                'valid' => (bool) $payload['valid'],
+                'errors' => $payload['errors'] ?? [],
+                'warnings' => $payload['warnings'] ?? [],
+                'diff' => $payload['diff'] ?? [],
+            ]);
+
+            Notification::make()
+                ->title($payload['valid'] ? 'Proposal ready for review' : 'Proposal needs revision')
+                ->{($payload['valid'] ?? false) ? 'success' : 'warning'}()
+                ->send();
+        }
     }
 
     public function validateProposal(ContentAssistantOrchestrator $orchestrator): void
@@ -191,7 +300,31 @@ class ContentAssistant extends FilamentPage
 
         $orchestrator->applyDraft($proposal, auth()->user());
 
-        Notification::make()->title('Draft saved')->body('The content is unpublished and ready for preview.')->success()->send();
+        Notification::make()
+            ->title('Draft saved')
+            ->body('Your changes are in the editor. The live site is unchanged until you publish.')
+            ->success()
+            ->send();
+    }
+
+    public function approveAndPublish(ContentAssistantOrchestrator $orchestrator): void
+    {
+        $proposal = $this->latestProposal;
+        abort_if(! $proposal, 422);
+
+        if (! $this->canApproveAndPublish()) {
+            Notification::make()->title('You cannot publish this proposal.')->danger()->send();
+
+            return;
+        }
+
+        $orchestrator->approveAndPublish($proposal, auth()->user());
+
+        Notification::make()
+            ->title('Changes published')
+            ->body('The approved updates are now live on the public site.')
+            ->success()
+            ->send();
     }
 
     public function openPreview(ContentAssistantOrchestrator $orchestrator): void
@@ -225,14 +358,13 @@ class ContentAssistant extends FilamentPage
         $this->conversationId = $conversationId;
         $this->attachments = [];
         $this->resetValidationState();
+        $this->isProcessing = false;
 
-        $proposal = $this->latestProposal;
+        $conversation = AiConversation::query()->find($conversationId);
 
-        if ($proposal) {
-            $target = $proposal->target();
-            if ($target instanceof Page) {
-                $this->targetPageId = $target->id;
-            }
+        if ($conversation?->target_type && $conversation->target_id) {
+            $this->targetType = $conversation->target_type->value;
+            $this->targetId = $conversation->target_id;
         }
     }
 
@@ -268,6 +400,18 @@ class ContentAssistant extends FilamentPage
             && $this->validationErrors === [];
     }
 
+    public function canApproveAndPublish(): bool
+    {
+        $proposal = $this->latestProposal;
+
+        if (! $proposal || $this->validationErrors !== []) {
+            return false;
+        }
+
+        return $proposal->status === ContentProposalStatus::Validated
+            && auth()->user()?->can('publish', $proposal);
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -281,6 +425,12 @@ class ContentAssistant extends FilamentPage
         $conversation = $this->activeConversation;
 
         if (! $conversation?->target_type || ! $conversation->target_id) {
+            if ($this->targetId) {
+                $target = ContentTargetResolver::find($this->targetTypeEnum, $this->targetId);
+
+                return $target ? ContentTargetResolver::label($target) : null;
+            }
+
             return null;
         }
 
@@ -297,6 +447,18 @@ class ContentAssistant extends FilamentPage
         $this->validationErrors = $result['errors'];
         $this->validationWarnings = $result['warnings'];
         $this->diff = $result['diff'];
+    }
+
+    private function finishProcessing(ContentAssistantOrchestrator $orchestrator, ContentProposal $proposal): void
+    {
+        $result = $orchestrator->validateProposal($proposal->fresh('operations'), auth()->user());
+        $this->isProcessing = false;
+        $this->applyValidationResult($result);
+
+        Notification::make()
+            ->title($result['valid'] ? 'Proposal ready for review' : 'Proposal needs revision')
+            ->{$result['valid'] ? 'success' : 'warning'}()
+            ->send();
     }
 
     private function resetValidationState(): void

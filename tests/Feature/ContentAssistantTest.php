@@ -84,12 +84,14 @@ class ContentAssistantTest extends TestCase
 
         $page->refresh();
 
-        $this->assertSame(PublishStatus::Draft, $page->status);
+        $this->assertSame(PublishStatus::Published, $page->status);
+        $this->assertTrue($page->has_unpublished_changes);
+        $this->assertNotNull($page->published_revision_id);
         $this->assertNotSame(
             '[DRAFT] I connect business goals, marketing, operations, and engineering—turning complex commerce challenges into clear, executable plans.',
             collect($page->blocks)->firstWhere('type', 'hero')['subheadline'] ?? null,
         );
-        $this->assertDatabaseHas('page_revisions', ['page_id' => $page->id]);
+        $this->assertDatabaseHas('page_revisions', ['page_id' => $page->id, 'id' => $page->published_revision_id]);
     }
 
     public function test_unsupported_code_request_produces_no_operations(): void
@@ -111,6 +113,39 @@ class ContentAssistantTest extends TestCase
 
         $this->assertSame([], $proposal->payload['operations']);
         $this->assertNotEmpty($proposal->warnings);
+    }
+
+    public function test_validated_proposal_can_be_approved_and_published(): void
+    {
+        $page = Page::query()->where('slug', 'home')->firstOrFail();
+        $orchestrator = app(ContentAssistantOrchestrator::class);
+
+        $conversation = $orchestrator->startConversation(
+            $this->editor,
+            ContentTargetType::Page,
+            $page->id,
+        );
+
+        $proposal = $orchestrator->sendMessage(
+            $conversation,
+            $this->editor,
+            'Rewrite the homepage hero subheadline in a less formal tone and keep both CTAs.',
+        );
+
+        $orchestrator->validateProposal($proposal, $this->editor);
+        $orchestrator->approveAndPublish($proposal->fresh(), $this->editor);
+
+        $page->refresh();
+
+        $this->assertSame(PublishStatus::Published, $page->status);
+        $this->assertSame(ContentProposalStatus::Published, $proposal->fresh()->status);
+        $this->assertNotSame(
+            '[DRAFT] I connect business goals, marketing, operations, and engineering—turning complex commerce challenges into clear, executable plans.',
+            collect($page->blocks)->firstWhere('type', 'hero')['subheadline'] ?? null,
+        );
+        $this->assertTrue(
+            ContentAssistantAuditEvent::query()->where('event_type', 'assistant_proposal_published')->exists()
+        );
     }
 
     public function test_audit_events_are_recorded_for_generation_and_draft_save(): void

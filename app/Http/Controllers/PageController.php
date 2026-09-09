@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\ContentAssistant\Services\ContentRevisionService;
 use App\Models\Page;
 use App\Services\PageBlockRenderer;
 use App\Services\SeoService;
@@ -18,6 +19,8 @@ class PageController extends Controller
             ->published()
             ->where('slug', $slug)
             ->firstOrFail();
+
+        $page = app(ContentRevisionService::class)->forPublicDisplay($page);
 
         return view('pages.show', [
             'page' => $page,

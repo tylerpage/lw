@@ -58,10 +58,12 @@ class BlockCatalogExporter
     private function notesFor(string $type): ?string
     {
         return match ($type) {
-            'capabilities_grid' => 'Heading only; capability items come from the database.',
-            'timeline' => 'Heading only; timeline entries come from the database.',
-            'featured_projects', 'featured_posts', 'testimonials' => 'Query block; set heading and limit only.',
-            'rich_text' => 'Plain text content only until HTML rendering is supported.',
+            'capabilities_grid' => 'Heading only; edit groups under Admin → Capabilities.',
+            'timeline' => 'Heading only; edit entries under Admin → Career Timeline.',
+            'featured_projects' => 'Heading and limit only; edit projects under Admin → Projects.',
+            'featured_posts' => 'Heading and limit only; edit posts under Admin → Posts.',
+            'testimonials' => 'Heading and limit only; edit testimonials under Admin → Testimonials.',
+            'rich_text', 'image_text', 'cta_banner', 'faq', 'quote', 'personality', 'card_grid' => 'Markdown is supported in content fields.',
             default => null,
         };
     }

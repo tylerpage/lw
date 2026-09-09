@@ -10,7 +10,16 @@
                     <div>
                         <p class="font-semibold">{{ $role->title }}</p>
                         <p class="text-sm text-charcoal/60">{{ $role->dateRangeLabel() }}</p>
-                        @if($role->summary)<p class="mt-2 text-sm text-charcoal/80">{{ $role->summary }}</p>@endif
+                        @if($role->summary)
+                            <x-markdown :content="$role->summary" class="mt-2 text-sm" />
+                        @endif
+                        @if(! empty($role->highlights))
+                            <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-charcoal/80">
+                                @foreach($role->highlights as $highlight)
+                                    <li>{{ $highlight }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
                     </div>
                 @endforeach
             </div>

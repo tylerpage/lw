@@ -24,6 +24,20 @@ class PageBlockRenderTest extends TestCase
         }
     }
 
+    public function test_rich_text_block_renders_markdown(): void
+    {
+        $html = app(PageBlockRenderer::class)->render([
+            [
+                'type' => 'rich_text',
+                'enabled' => true,
+                'content' => "## Section title\n\n**Bold copy**",
+            ],
+        ]);
+
+        $this->assertStringContainsString('<h2>Section title</h2>', $html);
+        $this->assertStringContainsString('<strong>Bold copy</strong>', $html);
+    }
+
     public function test_hero_block_renders_html(): void
     {
         $html = app(PageBlockRenderer::class)->render([

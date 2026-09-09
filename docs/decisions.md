@@ -28,7 +28,7 @@ Core pages, demo posts, and demo projects are seeded as **published** so the sit
 
 ## In-site conversational content assistant (Phase 1–2)
 
-Built a proposal-first content assistant for Filament using a fake provider by default (`CONTENT_ASSISTANT_DRIVER=fake`). The engine stores conversations/proposals, validates structured operations against existing page-builder schemas, records audit events, saves drafts only (never auto-publishes), and exposes safe Artisan inspection/proposal commands. Live provider integration, approval/publish confirmation tokens, and blog/case-study creation flows remain for later phases.
+Built a proposal-first content assistant for Filament using a fake provider by default (`CONTENT_ASSISTANT_DRIVER=fake`). Set `CONTENT_ASSISTANT_DRIVER=ai` with `OPENAI_API_KEY` (or another Laravel AI provider) to use the real `LaravelAiContentAssistantGateway` and structured `ContentProposalAgent`. The engine stores conversations/proposals, validates structured operations against existing page-builder schemas, records audit events, saves drafts only (never auto-publishes), and exposes safe Artisan inspection/proposal commands. Approval/publish confirmation tokens and blog/case-study creation flows remain for later phases.
 
 ## Demo content is clearly fictional
 
@@ -47,6 +47,10 @@ The in-app Content Assistant accepts reference images on each message. Files upl
 ## AI SEO quick actions on content edit screens
 
 Page, post, and case study edit/create forms include SEO tab quick buttons backed by `SeoGenerationService`. Suggestions are generated from the current title, excerpt/summary, and block content, then applied to the form only (not auto-saved). Modes: full SEO, meta only, Open Graph only, and improve existing.
+
+## Markdown content rendering
+
+Rich text and other body fields in page blocks render Markdown on the public site via `App\Support\Markdown` and the `<x-markdown>` component. Capability groups and career timeline entries are editable in Filament under Capabilities and Career Timeline.
 
 ## Public maintenance mode with IP bypass
 

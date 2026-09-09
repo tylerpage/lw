@@ -1,13 +1,16 @@
 <?php
 
 return [
+    /*
+    | Supported drivers: fake, ai (aliases: openai, laravel-ai)
+    */
     'driver' => env('CONTENT_ASSISTANT_DRIVER', 'fake'),
 
-    'openai' => [
-        'api_key' => env('OPENAI_API_KEY'),
-        'model' => env('CONTENT_ASSISTANT_MODEL', 'gpt-4.1-mini'),
-        'timeout' => (int) env('CONTENT_ASSISTANT_TIMEOUT', 60),
-    ],
+    'provider' => env('CONTENT_ASSISTANT_PROVIDER', env('AI_DEFAULT_PROVIDER', 'openai')),
+
+    'model' => env('CONTENT_ASSISTANT_MODEL', 'gpt-4.1-mini'),
+
+    'timeout' => (int) env('CONTENT_ASSISTANT_TIMEOUT', 60),
 
     'limits' => [
         'max_tokens_per_request' => (int) env('CONTENT_ASSISTANT_MAX_TOKENS', 4096),

@@ -31,6 +31,11 @@ use Filament\Forms\Components\Toggle;
 
 class BlockFormSchemas
 {
+    private static function markdownHelperText(): string
+    {
+        return 'Supports Markdown formatting (headings, bold, lists, links).';
+    }
+
     /**
      * @return array<int, Block>
      */
@@ -89,6 +94,7 @@ class BlockFormSchemas
                     ->required(),
                 Textarea::make('subheadline')
                     ->rows(3)
+                    ->helperText(self::markdownHelperText())
                     ->columnSpanFull(),
                 self::imagePath('image'),
                 TextInput::make('image_alt'),
@@ -107,8 +113,8 @@ class BlockFormSchemas
                 Textarea::make('content')
                     ->required()
                     ->rows(6)
-                    ->columnSpanFull()
-                    ->helperText('Plain text for now; HTML rendering is not yet supported.'),
+                    ->helperText(self::markdownHelperText())
+                    ->columnSpanFull(),
             ]));
     }
 
@@ -121,6 +127,7 @@ class BlockFormSchemas
                 Textarea::make('content')
                     ->required()
                     ->rows(4)
+                    ->helperText(self::markdownHelperText())
                     ->columnSpanFull(),
                 self::imagePath('image')
                     ->required(),
@@ -157,6 +164,7 @@ class BlockFormSchemas
                     ->required(),
                 Textarea::make('body')
                     ->rows(3)
+                    ->helperText(self::markdownHelperText())
                     ->columnSpanFull(),
                 TextInput::make('cta_label')
                     ->required(),
@@ -176,7 +184,8 @@ class BlockFormSchemas
                         TextInput::make('title')
                             ->required(),
                         Textarea::make('body')
-                            ->rows(2),
+                            ->rows(2)
+                            ->helperText(self::markdownHelperText()),
                         TextInput::make('url'),
                         self::imagePath('image'),
                     ])
@@ -191,14 +200,8 @@ class BlockFormSchemas
         return Block::make('capabilities_grid')
             ->label(CapabilitiesGridBlock::label())
             ->schema(array_merge(self::baseFields(), [
-                TextInput::make('heading'),
-                Textarea::make('helper')
-                    ->label('Helper text')
-                    ->helperText('Capabilities are loaded from the database; this block only controls the heading.')
-                    ->rows(2)
-                    ->columnSpanFull()
-                    ->disabled()
-                    ->dehydrated(false),
+                TextInput::make('heading')
+                    ->helperText('Capability groups are managed under Admin → Capabilities.'),
             ]));
     }
 
@@ -211,7 +214,7 @@ class BlockFormSchemas
                 TextInput::make('limit')
                     ->numeric()
                     ->default(3)
-                    ->helperText('Number of featured projects to show.'),
+                    ->helperText('Shows featured projects from Admin → Projects.'),
             ]));
     }
 
@@ -224,7 +227,7 @@ class BlockFormSchemas
                 TextInput::make('limit')
                     ->numeric()
                     ->default(3)
-                    ->helperText('Number of featured posts to show.'),
+                    ->helperText('Shows featured posts from Admin → Posts.'),
             ]));
     }
 
@@ -237,7 +240,7 @@ class BlockFormSchemas
                 TextInput::make('limit')
                     ->numeric()
                     ->default(3)
-                    ->helperText('Number of testimonials to show.'),
+                    ->helperText('Shows testimonials from Admin → Testimonials.'),
             ]));
     }
 
@@ -265,14 +268,8 @@ class BlockFormSchemas
         return Block::make('timeline')
             ->label(TimelineBlock::label())
             ->schema(array_merge(self::baseFields(), [
-                TextInput::make('heading'),
-                Textarea::make('helper')
-                    ->label('Helper text')
-                    ->helperText('Timeline entries are loaded from the database; this block only controls the heading.')
-                    ->rows(2)
-                    ->columnSpanFull()
-                    ->disabled()
-                    ->dehydrated(false),
+                TextInput::make('heading')
+                    ->helperText('Career entries are managed under Admin → Career Timeline.'),
             ]));
     }
 
@@ -307,7 +304,8 @@ class BlockFormSchemas
                             ->required(),
                         Textarea::make('answer')
                             ->required()
-                            ->rows(3),
+                            ->rows(3)
+                            ->helperText(self::markdownHelperText()),
                     ])
                     ->defaultItems(1)
                     ->collapsible()
@@ -323,6 +321,7 @@ class BlockFormSchemas
                 Textarea::make('quote')
                     ->required()
                     ->rows(4)
+                    ->helperText(self::markdownHelperText())
                     ->columnSpanFull(),
                 TextInput::make('attribution'),
             ]));
@@ -373,6 +372,7 @@ class BlockFormSchemas
                 TextInput::make('status_line'),
                 Textarea::make('body')
                     ->rows(4)
+                    ->helperText(self::markdownHelperText())
                     ->columnSpanFull(),
             ]));
     }

@@ -66,6 +66,7 @@ class ContentResourceForm
             ContentFormType::Post => array_merge($shared, [
                 Textarea::make('excerpt')
                     ->rows(3)
+                    ->helperText('Supports Markdown formatting.')
                     ->columnSpanFull(),
                 DateTimePicker::make('display_updated_at'),
                 Select::make('author_id')
@@ -80,6 +81,7 @@ class ContentResourceForm
             ContentFormType::Project => array_merge($shared, [
                 Textarea::make('card_summary')
                     ->rows(3)
+                    ->helperText('Supports Markdown formatting.')
                     ->columnSpanFull(),
                 Toggle::make('featured')
                     ->default(false),

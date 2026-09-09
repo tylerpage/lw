@@ -165,6 +165,7 @@
                                 rows="3"
                                 class="fi-input block w-full"
                                 placeholder="Describe the content change you want…"
+                                aria-describedby="assistant-message-hint"
                             ></textarea>
                         </x-filament::input.wrapper>
 
@@ -224,7 +225,9 @@
                         </div>
 
                         <div class="content-assistant__composer-footer">
-                            <p class="content-assistant__hint">Content changes only — not layout or code.</p>
+                            <p id="assistant-message-hint" class="content-assistant__hint">
+                                Enter to send · Shift+Enter for a new line · Content changes only, not layout or code.
+                            </p>
                             <x-filament::button type="submit" wire:loading.attr="disabled" wire:target="sendMessage,attachments" :disabled="$isProcessing">
                                 <span wire:loading.remove wire:target="sendMessage,attachments">{{ $isProcessing ? 'Working…' : 'Send' }}</span>
                                 <span wire:loading wire:target="sendMessage,attachments">Sending…</span>
@@ -373,6 +376,34 @@
 
     @script
     <script>
+        const bindAssistantComposer = () => {
+            const textarea = document.getElementById('assistant-message');
+
+            if (! textarea || textarea.dataset.enterToSendBound === 'true') {
+                return;
+            }
+
+            textarea.dataset.enterToSendBound = 'true';
+
+            textarea.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' || event.shiftKey || event.isComposing) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                if ($wire.isProcessing) {
+                    return;
+                }
+
+                textarea.closest('form')?.requestSubmit();
+            });
+        };
+
+        bindAssistantComposer();
+
+        Livewire.hook('morph.updated', bindAssistantComposer);
+
         $wire.on('open-preview', ({ url }) => {
             window.open(url, '_blank', 'noopener,noreferrer');
         });

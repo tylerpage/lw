@@ -6,6 +6,7 @@ use App\Models\Page;
 use App\Models\Post;
 use App\Models\Project;
 use App\Models\SiteSetting;
+use App\Support\MediaUrl;
 
 class SeoService
 {
@@ -17,7 +18,7 @@ class SeoService
             'canonical' => $page->canonical_url ?: url($page->slug === 'home' ? '/' : '/'.$page->slug),
             'og_title' => $page->og_title ?: $page->seoTitle(),
             'og_description' => $page->og_description ?: $page->seoDescription(),
-            'og_image' => $page->og_image ?: SiteSetting::get('default_og_image'),
+            'og_image' => MediaUrl::url($page->og_image ?: SiteSetting::get('default_og_image')),
             'robots' => $this->robotsDirective($page->isIndexable(), $page->isFollowable()),
         ];
     }
@@ -30,7 +31,7 @@ class SeoService
             'canonical' => $post->canonical_url ?: url('/insights/'.$post->slug),
             'og_title' => $post->og_title ?: $post->seoTitle(),
             'og_description' => $post->og_description ?: $post->seoDescription(),
-            'og_image' => $post->og_image ?: $post->hero_image ?: SiteSetting::get('default_og_image'),
+            'og_image' => MediaUrl::url($post->og_image ?: $post->hero_image ?: SiteSetting::get('default_og_image')),
             'robots' => $this->robotsDirective($post->isIndexable(), $post->isFollowable()),
         ];
     }
@@ -43,7 +44,7 @@ class SeoService
             'canonical' => $project->canonical_url ?: url('/work/'.$project->slug),
             'og_title' => $project->og_title ?: $project->seoTitle(),
             'og_description' => $project->og_description ?: $project->seoDescription(),
-            'og_image' => $project->og_image ?: $project->hero_image ?: SiteSetting::get('default_og_image'),
+            'og_image' => MediaUrl::url($project->og_image ?: $project->hero_image ?: SiteSetting::get('default_og_image')),
             'robots' => $this->robotsDirective($project->isIndexable(), $project->isFollowable()),
         ];
     }

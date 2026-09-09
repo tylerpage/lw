@@ -73,6 +73,27 @@ class ApplyProposalToDraft
         return $proposal->fresh(['operations']);
     }
 
+    public function hydratePreview(Page|Post|Project $target, ContentProposal $proposal): Page|Post|Project
+    {
+        $preview = clone $target;
+
+        if ($preview instanceof Post) {
+            $preview->body = json_decode(json_encode($target->body ?? []), true);
+        } else {
+            $preview->blocks = json_decode(json_encode($target->blocks ?? []), true);
+        }
+
+        foreach ($proposal->operations as $operationModel) {
+            try {
+                $this->applyOperation($preview, $operationModel->operation);
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        return $preview;
+    }
+
     private function recordPreApplyRevision(Page|Post $target, User $user, bool $wasPublic, bool $publish): void
     {
         if ($publish && $target->has_unpublished_changes) {

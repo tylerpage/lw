@@ -13,7 +13,11 @@
             @endif
         </div>
     </div>
-    @if(!empty($block['image']))
-        <img src="{{ asset($block['image']) }}" alt="{{ $block['image_alt'] ?? '' }}" class="aspect-square w-full max-w-md rounded-2xl object-cover object-top shadow-lg" width="448" height="448">
-    @endif
+    <x-block-image
+        :src="$block['image'] ?? null"
+        :alt="$block['image_alt'] ?? ''"
+        class="aspect-square w-full max-w-md rounded-2xl object-cover object-top shadow-lg"
+        width="448"
+        height="448"
+    />
 </div>

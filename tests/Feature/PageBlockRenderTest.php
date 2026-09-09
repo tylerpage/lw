@@ -55,6 +55,42 @@ class PageBlockRenderTest extends TestCase
         $this->assertStringContainsString('Learn more', $html);
     }
 
+    public function test_full_width_image_block_renders_remote_url(): void
+    {
+        $remoteUrl = 'https://static.wikia.nocookie.net/example/premiere.jpeg';
+
+        $html = app(PageBlockRenderer::class)->render([
+            [
+                'type' => 'full_width_image',
+                'enabled' => true,
+                'image' => $remoteUrl,
+                'image_alt' => 'Premiere photo',
+                'caption' => 'On the red carpet',
+            ],
+        ]);
+
+        $this->assertStringContainsString($remoteUrl, $html);
+        $this->assertStringContainsString('Premiere photo', $html);
+        $this->assertStringContainsString('On the red carpet', $html);
+    }
+
+    public function test_hero_block_renders_remote_image_url(): void
+    {
+        $remoteUrl = 'https://cdn.example.com/hero.jpg';
+
+        $html = app(PageBlockRenderer::class)->render([
+            [
+                'type' => 'hero',
+                'enabled' => true,
+                'headline' => 'Headline',
+                'image' => $remoteUrl,
+                'image_alt' => 'Hero image',
+            ],
+        ]);
+
+        $this->assertStringContainsString($remoteUrl, $html);
+    }
+
     /**
      * @return array<string, mixed>
      */

@@ -9,6 +9,7 @@ use App\Filament\Pages\ContentAssistant;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Project;
+use App\Support\ContentSlug;
 use Filament\Actions\Action;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -89,13 +90,11 @@ trait InteractsWithContentAssistant
 
         $data['title'] = $title;
 
-        $slug = trim((string) ($data['slug'] ?? ''));
-
-        if ($slug === '') {
-            $slug = Str::slug($title).'-'.Str::lower(Str::random(4));
-        }
-
-        $data['slug'] = $this->uniqueSlug($targetType, $slug);
+        $data = ContentSlug::ensure(
+            $data,
+            $targetType->modelClass(),
+            fallback: Str::slug($title) !== '' ? Str::slug($title) : 'untitled',
+        );
 
         if ($targetType === ContentTargetType::Page && blank($data['template'] ?? null)) {
             $data['template'] = 'default';
@@ -106,20 +105,6 @@ trait InteractsWithContentAssistant
         }
 
         return $data;
-    }
-
-    protected function uniqueSlug(ContentTargetType $targetType, string $slug): string
-    {
-        $modelClass = $targetType->modelClass();
-        $candidate = $slug;
-        $suffix = 2;
-
-        while ($modelClass::query()->where('slug', $candidate)->exists()) {
-            $candidate = $slug.'-'.$suffix;
-            $suffix++;
-        }
-
-        return $candidate;
     }
 
     abstract protected function contentWorkshopTargetType(): ContentTargetType;

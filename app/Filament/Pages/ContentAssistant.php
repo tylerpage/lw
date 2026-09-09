@@ -355,6 +355,16 @@ class ContentAssistant extends FilamentPage
         $proposal = $this->latestProposal;
         abort_if(! $proposal, 422);
 
+        if (($proposal->payload['operations'] ?? []) === []) {
+            Notification::make()
+                ->title('Nothing to preview yet')
+                ->body('This proposal has no content changes. Save a draft or regenerate the proposal first.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
         $url = $orchestrator->previewUrl($proposal, auth()->user());
         $this->dispatch('open-preview', url: $url);
     }

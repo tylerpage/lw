@@ -3,6 +3,7 @@
 namespace App\Filament\Forms;
 
 use App\Enums\PublishStatus;
+use App\Support\ContentSlug;
 use Filament\Forms\Components\Component;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
@@ -14,6 +15,8 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\ViewField;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class ContentResourceForm
@@ -46,9 +49,18 @@ class ContentResourceForm
         $shared = [
             TextInput::make('title')
                 ->required()
+                ->live(onBlur: true)
+                ->afterStateUpdated(function (?string $state, Set $set, Get $get): void {
+                    if (filled($get('slug'))) {
+                        return;
+                    }
+
+                    $set('slug', ContentSlug::fromTitle($state ?? ''));
+                })
                 ->columnSpanFull(),
             TextInput::make('slug')
-                ->required(),
+                ->alphaDash()
+                ->helperText('Leave blank to auto-generate from the title.'),
             Select::make('status')
                 ->options(PublishStatus::class)
                 ->default('draft')

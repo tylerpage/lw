@@ -3,6 +3,7 @@
 namespace App\ContentAssistant\Support;
 
 use App\ContentAssistant\DTO\ContentProposalData;
+use Illuminate\Support\Str;
 
 class ContentProposalResponseMapper
 {
@@ -24,8 +25,10 @@ class ContentProposalResponseMapper
             ->values()
             ->all();
 
+        $summary = Str::limit(trim((string) ($structured['summary'] ?? 'Content proposal')), 1000, '…');
+
         return new ContentProposalData(
-            summary: trim((string) ($structured['summary'] ?? 'Content proposal')),
+            summary: $summary,
             operations: $operations,
             sources: $sources,
             warnings: $warnings,

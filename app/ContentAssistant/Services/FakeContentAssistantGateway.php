@@ -197,7 +197,18 @@ class FakeContentAssistantGateway implements ContentAssistantGateway
 
     private function mentionsImageUse(string $message): bool
     {
-        foreach (['image', 'photo', 'picture', 'attached', 'upload', 'hero image', 'use this'] as $needle) {
+        foreach ([
+            'image',
+            'photo',
+            'picture',
+            'attached',
+            'upload',
+            'hero image',
+            'use this',
+            'use an image',
+            'use the image',
+            'use image',
+        ] as $needle) {
             if (str_contains($message, $needle)) {
                 return true;
             }

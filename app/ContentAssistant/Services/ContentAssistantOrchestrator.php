@@ -8,6 +8,7 @@ use App\ContentAssistant\DTO\ContentProposalData;
 use App\ContentAssistant\Jobs\ProcessAssistantMessageJob;
 use App\ContentAssistant\Support\ContentRevisionTracker;
 use App\ContentAssistant\Support\ContentTargetResolver;
+use App\ContentAssistant\Support\ProposalAttachmentNormalizer;
 use App\Enums\AiConversationStatus;
 use App\Enums\AiMessageRole;
 use App\Enums\ContentProposalStatus;
@@ -33,6 +34,7 @@ class ContentAssistantOrchestrator
         private ContentClaimValidator $claimValidator,
         private ProposalDiffBuilder $diffBuilder,
         private ApplyProposalToDraft $applyProposalToDraft,
+        private ProposalAttachmentNormalizer $attachmentNormalizer,
     ) {}
 
     public function startConversation(User $user, ContentTargetType $targetType, int $targetId, ?string $title = null): AiConversation
@@ -234,6 +236,12 @@ class ContentAssistantOrchestrator
 
         try {
             $proposalData = $this->gateway->propose($request);
+            $proposalData = $this->attachmentNormalizer->normalize(
+                $proposalData,
+                $attachments,
+                $latestUserMessage,
+                $target,
+            );
         } catch (\Throwable $exception) {
             ContentAssistantAuditEvent::record('assistant_proposal_failed', $user, $conversation, [
                 'error' => class_basename($exception),
@@ -376,6 +384,10 @@ class ContentAssistantOrchestrator
         abort_unless($user->can('view', $target), 403);
 
         ContentAssistantAuditEvent::record('assistant_preview_opened', $user, $proposal);
+
+        if (($proposal->payload['operations'] ?? []) !== []) {
+            return PreviewUrl::forProposal($proposal);
+        }
 
         return PreviewUrl::for($target);
     }

@@ -380,6 +380,6 @@ class BlockFormSchemas
     private static function imagePath(string $name): TextInput
     {
         return TextInput::make($name)
-            ->helperText('Path relative to the public disk, e.g. images/photo.jpg');
+            ->helperText('Local path (e.g. images/photo.jpg or storage/content-assistant/...) or full https:// URL.');
     }
 }

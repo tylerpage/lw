@@ -99,4 +99,34 @@ class ContentAssistantImageTest extends TestCase
         $this->assertSame('replace_block_fields', $operation['op'] ?? null);
         $this->assertSame($stored[0]['public_path'], $operation['fields']['image'] ?? null);
     }
+
+    public function test_image_is_applied_when_user_asks_to_use_an_image_without_mentioning_hero(): void
+    {
+        $page = Page::query()->where('slug', 'home')->firstOrFail();
+        $orchestrator = app(ContentAssistantOrchestrator::class);
+        $imageStorage = app(AssistantImageStorage::class);
+
+        $conversation = $orchestrator->startConversation(
+            $this->editor,
+            ContentTargetType::Page,
+            $page->id,
+        );
+
+        $stored = $imageStorage->storeMany([
+            UploadedFile::fake()->image('hero-reference.jpg'),
+        ], $conversation->id);
+
+        $proposal = $orchestrator->sendMessage(
+            $conversation,
+            $this->editor,
+            'Use an image for the homepage hero and keep both CTAs.',
+            null,
+            $stored,
+        );
+
+        $operation = $proposal->operations->first()?->operation;
+
+        $this->assertSame('replace_block_fields', $operation['op'] ?? null);
+        $this->assertSame($stored[0]['public_path'], $operation['fields']['image'] ?? null);
+    }
 }

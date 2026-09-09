@@ -7,7 +7,9 @@ use App\Enums\ContentProposalStatus;
 use App\Enums\ContentTargetType;
 use App\Enums\PublishStatus;
 use App\Enums\UserRole;
+use App\Models\AiConversation;
 use App\Models\ContentAssistantAuditEvent;
+use App\Models\ContentProposal;
 use App\Models\Page;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,6 +33,33 @@ class ContentAssistantTest extends TestCase
 
         $this->editor = User::query()->where('email', 'admin@example.com')->firstOrFail();
         $this->editor->assignRole(UserRole::SuperAdmin->value);
+    }
+
+    public function test_long_proposal_summary_is_persisted(): void
+    {
+        $conversation = AiConversation::query()->create([
+            'user_id' => $this->editor->id,
+            'title' => 'Project draft',
+            'target_type' => ContentTargetType::Project,
+            'target_id' => 1,
+            'last_activity_at' => now(),
+        ]);
+
+        $summary = str_repeat('Detailed migration checklist update. ', 20);
+
+        $proposal = ContentProposal::query()->create([
+            'conversation_id' => $conversation->id,
+            'user_id' => $this->editor->id,
+            'target_type' => ContentTargetType::Project,
+            'target_id' => 1,
+            'expected_revision' => 0,
+            'content_hash' => str_repeat('a', 64),
+            'status' => ContentProposalStatus::Proposed,
+            'summary' => $summary,
+            'payload' => ['operations' => []],
+        ]);
+
+        $this->assertSame($summary, $proposal->fresh()->summary);
     }
 
     public function test_editor_can_generate_homepage_hero_proposal_without_publishing(): void

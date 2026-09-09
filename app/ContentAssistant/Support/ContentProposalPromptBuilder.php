@@ -55,9 +55,9 @@ Available block types: {$blockTypes}
 
 When updating hero blocks, preserve CTA labels and URLs unless the user asks to change them. Use preserve for CTA fields when rewriting copy.
 
-When the user attaches images, use the provided public_path values (e.g. storage/content-assistant/...) for hero or image block fields when appropriate.
+When the user attaches images, you MUST use the provided public_path values (e.g. storage/content-assistant/...) in block image fields when they ask to use the image. Never use full URLs in image fields — only the storage/... path from the attachment metadata.
 
-Return JSON matching the schema. Keep assistant_message conversational and explain what you changed or why operations are empty.
+Return JSON matching the schema. Keep summary to one short sentence (under 240 characters). Keep assistant_message conversational and explain what you changed or why operations are empty.
 TEXT;
     }
 

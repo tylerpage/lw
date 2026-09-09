@@ -40,4 +40,11 @@ return [
         'max_files_per_message' => (int) env('CONTENT_ASSISTANT_MAX_ATTACHMENTS', 5),
         'max_file_size_kb' => (int) env('CONTENT_ASSISTANT_MAX_ATTACHMENT_SIZE_KB', 5120),
     ],
+
+    'media_library' => [
+        'disk' => env('CONTENT_ASSISTANT_MEDIA_DISK', 'public'),
+        'directory' => env('CONTENT_ASSISTANT_MEDIA_DIRECTORY', 'media-library'),
+        'max_file_size_kb' => (int) env('CONTENT_ASSISTANT_MEDIA_MAX_FILE_SIZE_KB', 10240),
+        'context_limit' => (int) env('CONTENT_ASSISTANT_MEDIA_CONTEXT_LIMIT', 50),
+    ],
 ];

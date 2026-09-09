@@ -4,6 +4,8 @@ namespace App\Filament\Pages;
 
 use App\ContentAssistant\Services\AssistantImageStorage;
 use App\ContentAssistant\Services\ContentAssistantOrchestrator;
+use App\ContentAssistant\Services\MediaLibraryService;
+use App\Filament\Resources\MediaAssets\MediaAssetResource;
 use App\ContentAssistant\Support\ContentTargetResolver;
 use App\ContentAssistant\Support\ProposalDiffPresenter;
 use App\Enums\ContentProposalStatus;
@@ -65,6 +67,9 @@ class ContentAssistant extends FilamentPage
     /** @var array<int, TemporaryUploadedFile> */
     public array $attachments = [];
 
+    /** @var array<int, int> */
+    public array $libraryAssetIds = [];
+
     /** @var array<int, array<string, mixed>> */
     public array $diff = [];
 
@@ -86,16 +91,22 @@ class ContentAssistant extends FilamentPage
      */
     protected function getHeaderActions(): array
     {
-        if (! filled($this->returnUrl)) {
-            return [];
-        }
+        $actions = [
+            Action::make('mediaLibrary')
+                ->label('Media Library')
+                ->icon('heroicon-o-photo')
+                ->url(MediaAssetResource::getUrl('index'))
+                ->openUrlInNewTab(),
+        ];
 
-        return [
-            Action::make('backToEditor')
+        if (filled($this->returnUrl)) {
+            $actions[] = Action::make('backToEditor')
                 ->label('Back to editor')
                 ->icon('heroicon-o-arrow-left')
-                ->url($this->returnUrl),
-        ];
+                ->url($this->returnUrl);
+        }
+
+        return $actions;
     }
 
     public function mount(): void
@@ -154,6 +165,11 @@ class ContentAssistant extends FilamentPage
         };
     }
 
+    public function getLibraryAssetsProperty(): Collection
+    {
+        return app(MediaLibraryService::class)->selectableImages();
+    }
+
     public function updatedTargetType(): void
     {
         $this->targetId = array_key_first($this->targetOptions) ?: null;
@@ -179,8 +195,11 @@ class ContentAssistant extends FilamentPage
         Notification::make()->title('Conversation started')->success()->send();
     }
 
-    public function sendMessage(ContentAssistantOrchestrator $orchestrator, AssistantImageStorage $imageStorage): void
-    {
+    public function sendMessage(
+        ContentAssistantOrchestrator $orchestrator,
+        AssistantImageStorage $imageStorage,
+        MediaLibraryService $mediaLibrary,
+    ): void {
         $maxFiles = config('content-assistant.attachments.max_files_per_message', 5);
         $maxSizeKb = config('content-assistant.attachments.max_file_size_kb', 5120);
 
@@ -188,11 +207,21 @@ class ContentAssistant extends FilamentPage
             'message' => ['nullable', 'string', 'max:5000'],
             'attachments' => ['array', 'max:'.$maxFiles],
             'attachments.*' => ['image', 'max:'.$maxSizeKb],
+            'libraryAssetIds' => ['array'],
+            'libraryAssetIds.*' => ['integer', 'exists:media_assets,id'],
         ]);
 
-        if (trim($this->message) === '' && $this->attachments === []) {
+        $attachmentCount = count($this->attachments) + count($this->libraryAssetIds);
+
+        if (trim($this->message) === '' && $attachmentCount === 0) {
             throw ValidationException::withMessages([
-                'message' => 'Add a message or attach at least one image.',
+                'message' => 'Add a message, pick a library image, or attach a file.',
+            ]);
+        }
+
+        if ($attachmentCount > $maxFiles) {
+            throw ValidationException::withMessages([
+                'attachments' => "You can include up to {$maxFiles} images per message.",
             ]);
         }
 
@@ -204,7 +233,10 @@ class ContentAssistant extends FilamentPage
             ->where('user_id', auth()->id())
             ->findOrFail($this->conversationId);
 
-        $storedAttachments = $imageStorage->storeMany($this->attachments, $conversation->id);
+        $storedAttachments = array_merge(
+            $mediaLibrary->attachmentsForIds($this->libraryAssetIds),
+            $imageStorage->storeMany($this->attachments, $conversation->id),
+        );
 
         $proposal = $orchestrator->sendMessage(
             $conversation,
@@ -216,6 +248,7 @@ class ContentAssistant extends FilamentPage
 
         $this->message = '';
         $this->attachments = [];
+        $this->libraryAssetIds = [];
         $this->resetValidationState();
         $this->conversationId = $conversation->id;
 
@@ -423,10 +456,25 @@ class ContentAssistant extends FilamentPage
         $this->attachments = array_values($this->attachments);
     }
 
+    public function toggleLibraryAsset(int $assetId): void
+    {
+        if (in_array($assetId, $this->libraryAssetIds, true)) {
+            $this->libraryAssetIds = array_values(array_filter(
+                $this->libraryAssetIds,
+                fn (int $id): bool => $id !== $assetId,
+            ));
+
+            return;
+        }
+
+        $this->libraryAssetIds[] = $assetId;
+    }
+
     public function selectConversation(int $conversationId): void
     {
         $this->conversationId = $conversationId;
         $this->attachments = [];
+        $this->libraryAssetIds = [];
         $this->resetValidationState();
         $this->isProcessing = false;
 

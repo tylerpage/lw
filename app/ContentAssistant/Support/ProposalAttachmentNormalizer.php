@@ -3,6 +3,7 @@
 namespace App\ContentAssistant\Support;
 
 use App\ContentAssistant\DTO\ContentProposalData;
+use App\ContentAssistant\Services\MediaLibraryService;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Project;
@@ -95,7 +96,9 @@ class ProposalAttachmentNormalizer
             return 'storage'.Str::after($value, '/storage');
         }
 
-        return $value;
+        $libraryPath = app(MediaLibraryService::class)->resolvePublicPath($value);
+
+        return $libraryPath ?? $value;
     }
 
     /**

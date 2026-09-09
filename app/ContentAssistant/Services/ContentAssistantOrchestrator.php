@@ -218,7 +218,12 @@ class ContentAssistantOrchestrator
 
         $context = array_merge(
             $this->contextBuilder->build($target),
-            ['latest_attachments' => $attachments],
+            [
+                'latest_attachments' => $attachments,
+                'media_library' => $this->contextBuilder->mediaLibraryAssets(
+                    (int) config('content-assistant.media_library.context_limit', 50),
+                ),
+            ],
         );
 
         $request = new ContentAssistantRequest(

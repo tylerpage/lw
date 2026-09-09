@@ -181,6 +181,45 @@
                             <p class="mt-2 text-sm text-danger-600">{{ $message }}</p>
                         @enderror
 
+                        @if ($this->libraryAssets->isNotEmpty())
+                            <div class="content-assistant__library-picker">
+                                <div class="flex items-center justify-between gap-2">
+                                    <p class="content-assistant__attachment-label">Media library</p>
+                                    <a
+                                        href="{{ \App\Filament\Resources\MediaAssets\MediaAssetResource::getUrl('index') }}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="text-xs font-medium text-primary-600 hover:underline dark:text-primary-400"
+                                    >
+                                        Manage files
+                                    </a>
+                                </div>
+                                <div class="content-assistant__library-grid">
+                                    @foreach ($this->libraryAssets as $asset)
+                                        @php($selected = in_array($asset->id, $libraryAssetIds, true))
+                                        <button
+                                            type="button"
+                                            wire:click="toggleLibraryAsset({{ $asset->id }})"
+                                            @class([
+                                                'content-assistant__library-item',
+                                                'content-assistant__library-item--selected' => $selected,
+                                            ])
+                                            title="{{ $asset->title }}"
+                                        >
+                                            <img
+                                                src="{{ $asset->url() }}"
+                                                alt="{{ $asset->alt_text ?? $asset->title }}"
+                                                class="content-assistant__library-image"
+                                            >
+                                        </button>
+                                    @endforeach
+                                </div>
+                                <p class="content-assistant__hint">
+                                    Select reusable images uploaded in the Media Library.
+                                </p>
+                            </div>
+                        @endif
+
                         <div class="content-assistant__attachment-picker">
                             <label for="assistant-attachments" class="content-assistant__attachment-label">
                                 Attach reference images

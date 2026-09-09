@@ -110,6 +110,26 @@
     @apply px-3 py-2;
 }
 
+.content-assistant__library-picker {
+    @apply space-y-2;
+}
+
+.content-assistant__library-grid {
+    @apply grid grid-cols-4 gap-2 sm:grid-cols-6;
+}
+
+.content-assistant__library-item {
+    @apply overflow-hidden rounded-lg border-2 border-transparent bg-gray-100 transition dark:bg-white/5;
+}
+
+.content-assistant__library-item--selected {
+    @apply border-primary-500 ring-2 ring-primary-500/30;
+}
+
+.content-assistant__library-image {
+    @apply aspect-square h-full w-full object-cover;
+}
+
 .content-assistant__attachment-picker {
     @apply mt-3 space-y-2;
 }

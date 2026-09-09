@@ -2,6 +2,7 @@
 
 namespace App\ContentAssistant\Services;
 
+use App\ContentAssistant\Services\MediaLibraryService;
 use App\ContentAssistant\Support\ContentTargetResolver;
 use App\Enums\ContentTargetType;
 use App\Models\ApprovedSource;
@@ -61,6 +62,14 @@ class ContentContextBuilder
     public function assistantInstructions(): ?string
     {
         return AssistantProfile::active()?->instructions;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function mediaLibraryAssets(int $limit = 50): array
+    {
+        return app(MediaLibraryService::class)->assetsForContext($limit);
     }
 
     private function pageContext(Page $page): array

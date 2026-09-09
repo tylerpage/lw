@@ -57,6 +57,8 @@ When updating hero blocks, preserve CTA labels and URLs unless the user asks to 
 
 When the user attaches images, you MUST use the provided public_path values (e.g. storage/content-assistant/...) in block image fields when they ask to use the image. Never use full URLs in image fields — only the storage/... path from the attachment metadata.
 
+The media_library section lists reusable uploaded files. Prefer these public_path values when the user asks for an image from the library or when a library asset matches the request.
+
 Return JSON matching the schema. Keep summary to one short sentence (under 240 characters). Keep assistant_message conversational and explain what you changed or why operations are empty.
 TEXT;
     }
@@ -76,6 +78,13 @@ TEXT;
         if ($request->latestAttachments !== []) {
             $sections[] = '## Attached reference images';
             $sections[] = json_encode($request->latestAttachments, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+
+        $mediaLibrary = $request->context['media_library'] ?? [];
+
+        if ($mediaLibrary !== []) {
+            $sections[] = '## Media library (reusable uploaded files)';
+            $sections[] = json_encode($mediaLibrary, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         }
 
         $sections[] = '## Latest user request';

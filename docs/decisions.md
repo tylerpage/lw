@@ -39,3 +39,11 @@ Case studies use `[DRAFT] Demo Case Study` titles and `[DRAFT] Demo Client` name
 Pages, posts, and case studies are edited on dedicated Filament edit pages with a visual block builder instead of raw JSON textareas. Filament Builder stores `{type, data}` internally; `BlockStateAdapter` converts to/from the flat `{type, enabled, ...fields}` JSON used on the public site and validated by `BlockRegistry`.
 
 Editors can also workshop copy in external ChatGPT sessions: **Copy AI context** exports a markdown brief (voice rules, block catalog, current record, import schema v1), and **Import content** accepts pasted JSON validated by the same registry and claim rules. Imports always save as draft and record a `content_import_applied` audit event. This complements the in-app Content Assistant; it does not replace it.
+
+## AI assistant image attachments
+
+The in-app Content Assistant accepts reference images on each message. Files upload to the `public` disk under `content-assistant/{conversation_id}/`, are stored on the message as URL + `public_path` metadata, and are passed to the assistant gateway in request context. Block proposals can reference uploaded images via the `storage/...` public path for hero and image blocks.
+
+## AI SEO quick actions on content edit screens
+
+Page, post, and case study edit/create forms include SEO tab quick buttons backed by `SeoGenerationService`. Suggestions are generated from the current title, excerpt/summary, and block content, then applied to the form only (not auto-saved). Modes: full SEO, meta only, Open Graph only, and improve existing.

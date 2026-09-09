@@ -13,6 +13,17 @@ class FakeContentAssistantGateway implements ContentAssistantGateway
     {
         $message = strtolower($request->latestUserMessage);
         $context = $request->context;
+        $attachments = $request->latestAttachments;
+
+        if ($attachments !== [] && $this->mentionsHero($message) === false && $this->mentionsSeo($message) === false) {
+            $urls = collect($attachments)->pluck('url')->implode(', ');
+
+            return new ContentProposalData(
+                summary: 'Reference image(s) received for content review.',
+                operations: [],
+                assistantMessage: "I received {$this->attachmentCountLabel(count($attachments))} at: {$urls}. Describe which section should change—for example, “Use this image for the homepage hero and rewrite the subheadline.”",
+            );
+        }
 
         if ($this->isUnsupportedCodeRequest($message)) {
             return new ContentProposalData(
@@ -24,7 +35,7 @@ class FakeContentAssistantGateway implements ContentAssistantGateway
         }
 
         if ($request->target instanceof Page && $this->mentionsHero($message)) {
-            return $this->heroProposal($context, $message);
+            return $this->heroProposal($request, $context, $message);
         }
 
         if ($this->mentionsSeo($message)) {
@@ -38,7 +49,7 @@ class FakeContentAssistantGateway implements ContentAssistantGateway
         );
     }
 
-    private function heroProposal(array $context, string $message): ContentProposalData
+    private function heroProposal(ContentAssistantRequest $request, array $context, string $message): ContentProposalData
     {
         $blocks = $context['blocks'] ?? [];
         $heroIndex = collect($blocks)->search(fn ($block) => ($block['type'] ?? null) === 'hero');
@@ -67,6 +78,13 @@ class FakeContentAssistantGateway implements ContentAssistantGateway
 
         if (str_contains($message, 'marketing') && str_contains($message, 'engineering')) {
             $fields['headline'] = 'Ecommerce strategy that connects marketing and engineering.';
+        }
+
+        $attachment = $this->firstAttachment($request);
+
+        if ($attachment && $this->mentionsImageUse($message)) {
+            $fields['image'] = $attachment['public_path'] ?? $attachment['path'];
+            $fields['image_alt'] = $attachment['original_name'] ?? 'Reference image';
         }
 
         if ($fields === []) {
@@ -126,6 +144,30 @@ class FakeContentAssistantGateway implements ContentAssistantGateway
     private function isUnsupportedCodeRequest(string $message): bool
     {
         foreach (['css', 'javascript', 'blade', 'php', 'layout', 'component', 'tailwind', 'migration'] as $needle) {
+            if (str_contains($message, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function attachmentCountLabel(int $count): string
+    {
+        return $count === 1 ? '1 reference image' : "{$count} reference images";
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function firstAttachment(ContentAssistantRequest $request): ?array
+    {
+        return $request->latestAttachments[0] ?? null;
+    }
+
+    private function mentionsImageUse(string $message): bool
+    {
+        foreach (['image', 'photo', 'picture', 'attached', 'upload', 'hero image', 'use this'] as $needle) {
             if (str_contains($message, $needle)) {
                 return true;
             }

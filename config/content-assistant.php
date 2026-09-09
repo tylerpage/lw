@@ -22,4 +22,11 @@ return [
         '[CLIENT NAME NEEDED]',
         '[TESTIMONIAL NEEDED]',
     ],
+
+    'attachments' => [
+        'disk' => env('CONTENT_ASSISTANT_ATTACHMENT_DISK', 'public'),
+        'directory' => env('CONTENT_ASSISTANT_ATTACHMENT_DIRECTORY', 'content-assistant'),
+        'max_files_per_message' => (int) env('CONTENT_ASSISTANT_MAX_ATTACHMENTS', 5),
+        'max_file_size_kb' => (int) env('CONTENT_ASSISTANT_MAX_ATTACHMENT_SIZE_KB', 5120),
+    ],
 ];

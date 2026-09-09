@@ -5,6 +5,7 @@ namespace App\ContentAssistant\Services;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Project;
+use App\PageBlocks\BlockRegistry;
 use Illuminate\Database\Eloquent\Model;
 
 class ProposalDiffBuilder
@@ -101,9 +102,15 @@ class ProposalDiffBuilder
             }
         }
 
+        $blockType = (string) ($before['type'] ?? 'block');
+        $class = BlockRegistry::all()[$blockType] ?? null;
+        $blockLabel = $class ? $class::label() : str($blockType)->replace('_', ' ')->title()->toString();
+
         return [
             'type' => 'block_fields',
-            'label' => ($before['type'] ?? 'block').' #'.($blockIndex ?? '?'),
+            'label' => is_int($blockIndex)
+                ? "{$blockLabel} (section ".($blockIndex + 1).')'
+                : $blockLabel,
             'operation_index' => $index,
             'before' => $before,
             'after' => $after,

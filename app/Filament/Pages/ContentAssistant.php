@@ -2,8 +2,10 @@
 
 namespace App\Filament\Pages;
 
+use App\ContentAssistant\Services\AssistantImageStorage;
 use App\ContentAssistant\Services\ContentAssistantOrchestrator;
 use App\ContentAssistant\Support\ContentTargetResolver;
+use App\ContentAssistant\Support\ProposalDiffPresenter;
 use App\Enums\ContentProposalStatus;
 use App\Enums\ContentTargetType;
 use App\Models\AiConversation;
@@ -12,18 +14,28 @@ use App\Models\Page;
 use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page as FilamentPage;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 class ContentAssistant extends FilamentPage
 {
+    use WithFileUploads;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSparkles;
 
     protected static ?string $navigationLabel = 'AI Content Assistant';
 
     protected static ?string $title = 'AI Content Assistant';
 
+    protected ?string $subheading = 'Describe content changes in plain language, review the proposal, then save as a draft. Nothing publishes automatically.';
+
     protected static ?int $navigationSort = 2;
+
+    protected Width|string|null $maxContentWidth = Width::Full;
 
     protected string $view = 'filament.pages.content-assistant';
 
@@ -32,6 +44,9 @@ class ContentAssistant extends FilamentPage
     public ?int $targetPageId = null;
 
     public string $message = '';
+
+    /** @var array<int, TemporaryUploadedFile> */
+    public array $attachments = [];
 
     /** @var array<int, array<string, mixed>> */
     public array $diff = [];
@@ -105,9 +120,22 @@ class ContentAssistant extends FilamentPage
         Notification::make()->title('Conversation started')->success()->send();
     }
 
-    public function sendMessage(ContentAssistantOrchestrator $orchestrator): void
+    public function sendMessage(ContentAssistantOrchestrator $orchestrator, AssistantImageStorage $imageStorage): void
     {
-        $this->validate(['message' => ['required', 'string', 'max:5000']]);
+        $maxFiles = config('content-assistant.attachments.max_files_per_message', 5);
+        $maxSizeKb = config('content-assistant.attachments.max_file_size_kb', 5120);
+
+        $this->validate([
+            'message' => ['nullable', 'string', 'max:5000'],
+            'attachments' => ['array', 'max:'.$maxFiles],
+            'attachments.*' => ['image', 'max:'.$maxSizeKb],
+        ]);
+
+        if (trim($this->message) === '' && $this->attachments === []) {
+            throw ValidationException::withMessages([
+                'message' => 'Add a message or attach at least one image.',
+            ]);
+        }
 
         if (! $this->conversationId) {
             $this->startConversation($orchestrator);
@@ -117,14 +145,18 @@ class ContentAssistant extends FilamentPage
             ->where('user_id', auth()->id())
             ->findOrFail($this->conversationId);
 
+        $storedAttachments = $imageStorage->storeMany($this->attachments, $conversation->id);
+
         $proposal = $orchestrator->sendMessage(
             $conversation,
             auth()->user(),
             trim($this->message),
             $orchestrator->generateIdempotencyKey(),
+            $storedAttachments,
         );
 
         $this->message = '';
+        $this->attachments = [];
         $this->resetValidationState();
         $this->conversationId = $conversation->id;
 
@@ -182,9 +214,16 @@ class ContentAssistant extends FilamentPage
         Notification::make()->title('Proposal rejected')->success()->send();
     }
 
+    public function removeAttachment(int $index): void
+    {
+        unset($this->attachments[$index]);
+        $this->attachments = array_values($this->attachments);
+    }
+
     public function selectConversation(int $conversationId): void
     {
         $this->conversationId = $conversationId;
+        $this->attachments = [];
         $this->resetValidationState();
 
         $proposal = $this->latestProposal;
@@ -200,6 +239,41 @@ class ContentAssistant extends FilamentPage
     public function proposalStatusLabel(): ?string
     {
         return $this->latestProposal?->status->label();
+    }
+
+    public function proposalStatusColor(): string
+    {
+        return match ($this->latestProposal?->status) {
+            ContentProposalStatus::Validated,
+            ContentProposalStatus::DraftSaved,
+            ContentProposalStatus::Approved,
+            ContentProposalStatus::Published => 'success',
+            ContentProposalStatus::NeedsRevision,
+            ContentProposalStatus::Stale => 'warning',
+            ContentProposalStatus::Rejected,
+            ContentProposalStatus::Failed => 'danger',
+            default => 'gray',
+        };
+    }
+
+    public function hasProposal(): bool
+    {
+        return $this->latestProposal !== null
+            && ($this->latestProposal->payload['operations'] ?? []) !== [];
+    }
+
+    public function canSaveDraft(): bool
+    {
+        return $this->latestProposal?->status === ContentProposalStatus::Validated
+            && $this->validationErrors === [];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function getFormattedDiffProperty(): array
+    {
+        return app(ProposalDiffPresenter::class)->present($this->diff);
     }
 
     public function targetLabel(): ?string

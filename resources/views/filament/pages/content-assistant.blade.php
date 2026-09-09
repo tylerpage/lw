@@ -1,120 +1,226 @@
 <x-filament-panels::page>
-    <div class="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside class="space-y-4">
-            <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-                <h2 class="text-sm font-semibold text-gray-950 dark:text-white">Conversations</h2>
-                <div class="mt-3 space-y-2">
-                    @forelse ($this->conversations as $conversation)
-                        <button
-                            type="button"
-                            wire:click="selectConversation({{ $conversation->id }})"
-                            class="w-full rounded-lg border px-3 py-2 text-left text-sm transition @if($conversationId === $conversation->id) border-amber-400 bg-amber-50 dark:bg-amber-950/20 @else border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 @endif"
-                        >
-                            <div class="font-medium text-gray-950 dark:text-white">{{ $conversation->title }}</div>
-                            <div class="mt-1 text-xs text-gray-500">{{ $conversation->last_activity_at?->diffForHumans() }}</div>
-                        </button>
-                    @empty
-                        <p class="text-sm text-gray-500">No conversations yet.</p>
-                    @endforelse
-                </div>
-            </div>
+    <div class="content-assistant">
+        <x-filament::section heading="How this works" compact secondary>
+            <ol class="content-assistant__steps">
+                <li class="content-assistant__step">
+                    <span class="content-assistant__step-number">1</span>
+                    <span><strong class="text-gray-950 dark:text-white">Describe</strong> the change in plain language.</span>
+                </li>
+                <li class="content-assistant__step">
+                    <span class="content-assistant__step-number">2</span>
+                    <span><strong class="text-gray-950 dark:text-white">Review</strong> the proposed edits in the panel on the right.</span>
+                </li>
+                <li class="content-assistant__step">
+                    <span class="content-assistant__step-number">3</span>
+                    <span><strong class="text-gray-950 dark:text-white">Save draft</strong> to preview on the live site.</span>
+                </li>
+            </ol>
+        </x-filament::section>
 
-            <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-                <h2 class="text-sm font-semibold text-gray-950 dark:text-white">Content target</h2>
-                <div class="mt-3 space-y-3">
-                    <select
-                        wire:model.live="targetPageId"
-                        class="fi-input block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
-                    >
-                        @foreach ($this->pageOptions as $id => $title)
-                            <option value="{{ $id }}">{{ $title }}</option>
-                        @endforeach
-                    </select>
-                    <x-filament::button wire:click="startConversation" color="gray" class="w-full">
-                        Start new conversation
-                    </x-filament::button>
-                </div>
-            </div>
-        </aside>
-
-        <div class="space-y-6">
-            <section class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <h2 class="text-base font-semibold text-gray-950 dark:text-white">Conversation</h2>
-                        @if ($this->targetLabel())
-                            <p class="mt-1 text-sm text-gray-500">{{ $this->targetLabel() }}</p>
-                        @endif
+        <div class="content-assistant__layout">
+            <div class="content-assistant__stack">
+                <x-filament::section heading="Recent conversations">
+                    <div class="content-assistant__conversation-list">
+                        @forelse ($this->conversations as $conversation)
+                            <button
+                                type="button"
+                                wire:click="selectConversation({{ $conversation->id }})"
+                                @class([
+                                    'content-assistant__conversation',
+                                    'content-assistant__conversation--active' => $conversationId === $conversation->id,
+                                    'content-assistant__conversation--idle' => $conversationId !== $conversation->id,
+                                ])
+                            >
+                                <div class="content-assistant__conversation-title">{{ $conversation->title }}</div>
+                                <div class="content-assistant__conversation-meta">{{ $conversation->last_activity_at?->diffForHumans() }}</div>
+                            </button>
+                        @empty
+                            <p class="content-assistant__empty-text">No conversations yet. Pick a page below and start one.</p>
+                        @endforelse
                     </div>
-                    @if ($this->proposalStatusLabel())
-                        <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                            {{ $this->proposalStatusLabel() }}
-                        </span>
-                    @endif
-                </div>
+                </x-filament::section>
 
-                <div class="mt-4 max-h-[420px] space-y-3 overflow-y-auto" aria-live="polite">
+                <x-filament::section
+                    heading="Page to edit"
+                    description="The assistant only changes content on the selected page."
+                >
+                    <div class="content-assistant__stack">
+                        <x-filament::input.wrapper>
+                            <x-filament::input.select wire:model.live="targetPageId">
+                                @foreach ($this->pageOptions as $id => $title)
+                                    <option value="{{ $id }}">{{ $title }}</option>
+                                @endforeach
+                            </x-filament::input.select>
+                        </x-filament::input.wrapper>
+
+                        <x-filament::button wire:click="startConversation" color="gray" class="w-full" size="sm">
+                            New conversation
+                        </x-filament::button>
+                    </div>
+                </x-filament::section>
+            </div>
+
+            <x-filament::section class="content-assistant__chat">
+                <x-slot:heading>Chat</x-slot:heading>
+
+                @if ($this->targetLabel())
+                    <x-slot:description>{{ $this->targetLabel() }}</x-slot:description>
+                @endif
+
+                @if ($this->proposalStatusLabel())
+                    <x-slot:afterHeader>
+                        <x-filament::badge :color="$this->proposalStatusColor()">
+                            {{ $this->proposalStatusLabel() }}
+                        </x-filament::badge>
+                    </x-slot:afterHeader>
+                @endif
+
+                <div class="content-assistant__chat-messages" aria-live="polite">
                     @forelse ($this->activeConversation?->messages ?? [] as $chatMessage)
+                        @php($isUser = $chatMessage->role->value === 'user')
                         <div @class([
-                            'rounded-lg px-3 py-2 text-sm',
-                            'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100' => $chatMessage->role->value === 'user',
-                            'bg-amber-50 text-gray-900 dark:bg-amber-950/20 dark:text-gray-100' => $chatMessage->role->value === 'assistant',
+                            'content-assistant__message-row',
+                            'content-assistant__message-row--user' => $isUser,
+                            'content-assistant__message-row--assistant' => ! $isUser,
                         ])>
-                            <div class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                {{ $chatMessage->role->label() }}
+                            <div @class([
+                                'content-assistant__message',
+                                'content-assistant__message--user' => $isUser,
+                                'content-assistant__message--assistant' => ! $isUser,
+                            ])>
+                                <div @class([
+                                    'content-assistant__message-label',
+                                    'content-assistant__message-label--user' => $isUser,
+                                    'content-assistant__message-label--assistant' => ! $isUser,
+                                ])>
+                                    {{ $isUser ? 'You' : 'Assistant' }}
+                                </div>
+                                @if ($chatMessage->content !== '[Image reference attached]')
+                                    <div class="content-assistant__message-body">{{ $chatMessage->content }}</div>
+                                @endif
+
+                                @if ($chatMessage->attachments() !== [])
+                                    <div class="content-assistant__message-attachments">
+                                        @foreach ($chatMessage->attachments() as $attachment)
+                                            <a
+                                                href="{{ $attachment['url'] }}"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="content-assistant__attachment-link"
+                                            >
+                                                <img
+                                                    src="{{ $attachment['url'] }}"
+                                                    alt="{{ $attachment['original_name'] ?? 'Attached image' }}"
+                                                    class="content-assistant__attachment-image"
+                                                >
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
-                            <div class="whitespace-pre-wrap">{{ $chatMessage->content }}</div>
                         </div>
                     @empty
-                        <p class="text-sm text-gray-500">Describe the content change you want to make.</p>
+                        <div class="content-assistant__chat-empty">
+                            <p class="font-medium text-gray-950 dark:text-white">Start by describing a content change</p>
+                            <p class="content-assistant__empty-text mt-2 max-w-md">
+                                Example: “Make the homepage hero focus more on connecting marketing and engineering, but keep both CTAs.”
+                            </p>
+                        </div>
                     @endforelse
                 </div>
 
-                <form wire:submit="sendMessage" class="mt-4 space-y-3">
-                    <label class="sr-only" for="assistant-message">Message</label>
-                    <textarea
-                        id="assistant-message"
-                        wire:model="message"
-                        rows="4"
-                        class="fi-input block w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"
-                        placeholder="Example: Make the homepage hero focus more on connecting marketing and engineering, but keep both CTAs."
-                    ></textarea>
-                    @error('message')
-                        <p class="text-sm text-danger-600">{{ $message }}</p>
-                    @enderror
-                    <x-filament::button type="submit">
-                        Send
-                    </x-filament::button>
-                </form>
-            </section>
+                <x-slot:footer>
+                    <form wire:submit="sendMessage" class="content-assistant__composer">
+                        <label class="sr-only" for="assistant-message">Message</label>
+                        <x-filament::input.wrapper>
+                            <textarea
+                                id="assistant-message"
+                                wire:model="message"
+                                rows="3"
+                                class="fi-input block w-full"
+                                placeholder="Describe the content change you want…"
+                            ></textarea>
+                        </x-filament::input.wrapper>
 
-            <section class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h2 class="text-base font-semibold text-gray-950 dark:text-white">Proposed changes</h2>
-                    <div class="flex flex-wrap gap-2">
-                        <x-filament::button wire:click="validateProposal" color="gray" size="sm">
-                            Re-validate
-                        </x-filament::button>
-                        <x-filament::button wire:click="applyDraft" size="sm">
-                            Save draft
-                        </x-filament::button>
-                        <x-filament::button wire:click="openPreview" color="gray" size="sm">
-                            Preview
-                        </x-filament::button>
-                        <x-filament::button wire:click="rejectProposal" color="danger" size="sm">
-                            Discard
-                        </x-filament::button>
-                    </div>
-                </div>
+                        @error('message')
+                            <p class="mt-2 text-sm text-danger-600">{{ $message }}</p>
+                        @enderror
 
-                @if ($this->latestProposal)
-                    <p class="mt-3 text-sm text-gray-700 dark:text-gray-200">{{ $this->latestProposal->summary }}</p>
+                        @error('attachments')
+                            <p class="mt-2 text-sm text-danger-600">{{ $message }}</p>
+                        @enderror
+
+                        @error('attachments.*')
+                            <p class="mt-2 text-sm text-danger-600">{{ $message }}</p>
+                        @enderror
+
+                        <div class="content-assistant__attachment-picker">
+                            <label for="assistant-attachments" class="content-assistant__attachment-label">
+                                Attach reference images
+                            </label>
+                            <input
+                                id="assistant-attachments"
+                                type="file"
+                                wire:model="attachments"
+                                accept="image/*"
+                                multiple
+                                class="content-assistant__attachment-input"
+                            >
+                            <p class="content-assistant__hint">
+                                Up to {{ config('content-assistant.attachments.max_files_per_message', 5) }} images.
+                                Uploaded files are stored in the app and passed to the assistant by URL.
+                            </p>
+                        </div>
+
+                        @if ($attachments !== [])
+                            <div class="content-assistant__attachment-preview-list">
+                                @foreach ($attachments as $index => $attachment)
+                                    <div class="content-assistant__attachment-preview" wire:key="attachment-{{ $index }}">
+                                        <img
+                                            src="{{ $attachment->temporaryUrl() }}"
+                                            alt="Pending upload"
+                                            class="content-assistant__attachment-image"
+                                        >
+                                        <button
+                                            type="button"
+                                            wire:click="removeAttachment({{ $index }})"
+                                            class="content-assistant__attachment-remove"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        <div wire:loading wire:target="attachments" class="content-assistant__hint">
+                            Uploading image preview…
+                        </div>
+
+                        <div class="content-assistant__composer-footer">
+                            <p class="content-assistant__hint">Content changes only — not layout or code.</p>
+                            <x-filament::button type="submit" wire:loading.attr="disabled" wire:target="sendMessage,attachments">
+                                <span wire:loading.remove wire:target="sendMessage,attachments">Send</span>
+                                <span wire:loading wire:target="sendMessage,attachments">Sending…</span>
+                            </x-filament::button>
+                        </div>
+                    </form>
+                </x-slot:footer>
+            </x-filament::section>
+
+            <x-filament::section heading="Proposed changes">
+                @if ($this->latestProposal?->summary)
+                    <p class="content-assistant__summary">{{ $this->latestProposal->summary }}</p>
+                @elseif (! $this->hasProposal())
+                    <p class="content-assistant__empty-text">
+                        Send a message to generate a structured proposal you can review here.
+                    </p>
                 @endif
 
                 @if ($validationErrors !== [])
-                    <div class="mt-4 rounded-lg border border-danger-300 bg-danger-50 p-3 text-sm text-danger-800 dark:border-danger-800 dark:bg-danger-950/20 dark:text-danger-200" role="alert">
-                        <p class="font-semibold">Validation errors</p>
-                        <ul class="mt-2 list-disc pl-5">
+                    <div class="content-assistant__alert content-assistant__alert--danger mt-4" role="alert">
+                        <p class="content-assistant__alert-title">Fix these before saving</p>
+                        <ul class="content-assistant__alert-list">
                             @foreach ($validationErrors as $error)
                                 <li>{{ $error }}</li>
                             @endforeach
@@ -123,9 +229,9 @@
                 @endif
 
                 @if ($validationWarnings !== [])
-                    <div class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-100">
-                        <p class="font-semibold">Warnings</p>
-                        <ul class="mt-2 list-disc pl-5">
+                    <div class="content-assistant__alert content-assistant__alert--warning mt-4">
+                        <p class="content-assistant__alert-title">Review warnings</p>
+                        <ul class="content-assistant__alert-list">
                             @foreach ($validationWarnings as $warning)
                                 <li>{{ $warning }}</li>
                             @endforeach
@@ -133,42 +239,96 @@
                     </div>
                 @endif
 
-                <div class="mt-4 space-y-4">
-                    @forelse ($diff as $item)
-                        <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-                            <div class="text-sm font-semibold text-gray-950 dark:text-white">{{ $item['label'] ?? 'Change' }}</div>
+                <div class="content-assistant__diff-list mt-4">
+                    @forelse ($this->formattedDiff as $item)
+                        <div class="content-assistant__diff-card">
+                            <div class="content-assistant__diff-header">
+                                <p class="content-assistant__diff-title">{{ $item['title'] }}</p>
+                                @if (! empty($item['description']))
+                                    <p class="content-assistant__diff-description">{{ $item['description'] }}</p>
+                                @endif
+                            </div>
 
-                            @if (($item['type'] ?? null) === 'field')
-                                <dl class="mt-2 grid gap-2 text-sm">
-                                    <div>
-                                        <dt class="font-medium text-gray-500">Before</dt>
-                                        <dd class="mt-1 whitespace-pre-wrap text-gray-900 dark:text-gray-100">{{ $item['before'] ?? '—' }}</dd>
+                            <div class="content-assistant__diff-body">
+                                @if (($item['type'] ?? null) === 'block_fields' && ! empty($item['changes']))
+                                    @foreach ($item['changes'] as $change)
+                                        <div class="space-y-2">
+                                            <p class="content-assistant__diff-field">{{ $change['field'] }}</p>
+                                            <div class="grid gap-2">
+                                                <div class="content-assistant__diff-snapshot content-assistant__diff-snapshot--before">
+                                                    <p class="content-assistant__diff-snapshot-label content-assistant__diff-snapshot-label--before">Before</p>
+                                                    <p class="content-assistant__diff-snapshot-value content-assistant__diff-snapshot-value--before">{{ $change['before'] }}</p>
+                                                </div>
+                                                <div class="content-assistant__diff-snapshot content-assistant__diff-snapshot--after">
+                                                    <p class="content-assistant__diff-snapshot-label content-assistant__diff-snapshot-label--after">After</p>
+                                                    <p class="content-assistant__diff-snapshot-value content-assistant__diff-snapshot-value--after">{{ $change['after'] }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+
+                                    @if (! empty($item['preserved']))
+                                        <p class="content-assistant__diff-preserved">
+                                            Unchanged: {{ implode(', ', $item['preserved']) }}
+                                        </p>
+                                    @endif
+                                @elseif (isset($item['before']) && isset($item['after']))
+                                    <div class="grid gap-2">
+                                        <div class="content-assistant__diff-snapshot content-assistant__diff-snapshot--before">
+                                            <p class="content-assistant__diff-snapshot-label content-assistant__diff-snapshot-label--before">Before</p>
+                                            <p class="content-assistant__diff-snapshot-value content-assistant__diff-snapshot-value--before">{{ $item['before'] }}</p>
+                                        </div>
+                                        <div class="content-assistant__diff-snapshot content-assistant__diff-snapshot--after">
+                                            <p class="content-assistant__diff-snapshot-label content-assistant__diff-snapshot-label--after">After</p>
+                                            <p class="content-assistant__diff-snapshot-value content-assistant__diff-snapshot-value--after">{{ $item['after'] }}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <dt class="font-medium text-gray-500">After</dt>
-                                        <dd class="mt-1 whitespace-pre-wrap text-gray-900 dark:text-gray-100">{{ $item['after'] ?? '—' }}</dd>
-                                    </div>
-                                </dl>
-                            @elseif (($item['type'] ?? null) === 'block_fields')
-                                <dl class="mt-2 grid gap-2 text-sm">
-                                    <div>
-                                        <dt class="font-medium text-gray-500">Before</dt>
-                                        <dd class="mt-1"><pre class="overflow-x-auto rounded bg-gray-50 p-2 text-xs dark:bg-gray-800">{{ json_encode($item['before'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre></dd>
-                                    </div>
-                                    <div>
-                                        <dt class="font-medium text-gray-500">After</dt>
-                                        <dd class="mt-1"><pre class="overflow-x-auto rounded bg-gray-50 p-2 text-xs dark:bg-gray-800">{{ json_encode($item['after'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre></dd>
-                                    </div>
-                                </dl>
-                            @else
-                                <pre class="mt-2 overflow-x-auto rounded bg-gray-50 p-2 text-xs dark:bg-gray-800">{{ json_encode($item, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
-                            @endif
+                                @elseif (! empty($item['preview']))
+                                    <ul class="content-assistant__alert-list text-sm text-gray-700 dark:text-gray-200">
+                                        @foreach ($item['preview'] as $line)
+                                            <li>{{ $line }}</li>
+                                        @endforeach
+                                    </ul>
+                                @endif
+                            </div>
                         </div>
                     @empty
-                        <p class="text-sm text-gray-500">Send a message to generate a structured proposal and diff.</p>
+                        @if ($this->hasProposal())
+                            <p class="content-assistant__empty-text">This proposal has no editable content changes.</p>
+                        @endif
                     @endforelse
                 </div>
-            </section>
+
+                @if ($this->hasProposal())
+                    <x-slot:footer>
+                        <div class="content-assistant__actions">
+                            <x-filament::button
+                                wire:click="applyDraft"
+                                class="w-full"
+                                :disabled="! $this->canSaveDraft()"
+                            >
+                                Save as draft
+                            </x-filament::button>
+
+                            @if (! $this->canSaveDraft())
+                                <p class="content-assistant__hint text-center">Validate the proposal before saving.</p>
+                            @endif
+
+                            <div class="content-assistant__actions-row">
+                                <x-filament::button wire:click="validateProposal" color="gray" size="sm" class="w-full">
+                                    Re-validate
+                                </x-filament::button>
+                                <x-filament::button wire:click="openPreview" color="gray" size="sm" class="w-full">
+                                    Preview
+                                </x-filament::button>
+                                <x-filament::button wire:click="rejectProposal" color="danger" size="sm" class="w-full">
+                                    Discard
+                                </x-filament::button>
+                            </div>
+                        </div>
+                    </x-slot:footer>
+                @endif
+            </x-filament::section>
         </div>
     </div>
 

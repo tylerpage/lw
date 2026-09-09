@@ -11,6 +11,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\ViewField;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
@@ -106,6 +107,11 @@ class ContentResourceForm
     private static function seoFields(): array
     {
         return [
+            ViewField::make('ai_seo_actions')
+                ->hiddenLabel()
+                ->view('filament.forms.components.ai-seo-actions')
+                ->dehydrated(false)
+                ->columnSpanFull(),
             TextInput::make('seo_title'),
             Textarea::make('seo_description')
                 ->rows(3)

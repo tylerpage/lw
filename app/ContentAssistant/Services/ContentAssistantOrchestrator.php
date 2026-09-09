@@ -56,8 +56,16 @@ class ContentAssistantOrchestrator
         return $conversation;
     }
 
-    public function sendMessage(AiConversation $conversation, User $user, string $message, ?string $idempotencyKey = null): ContentProposal
-    {
+    /**
+     * @param  array<int, array{path: string, url: string, original_name?: string, mime_type?: string, size?: int}>  $attachments
+     */
+    public function sendMessage(
+        AiConversation $conversation,
+        User $user,
+        string $message,
+        ?string $idempotencyKey = null,
+        array $attachments = [],
+    ): ContentProposal {
         abort_unless($conversation->user_id === $user->id, 403);
 
         $target = $conversation->target_type && $conversation->target_id
@@ -65,6 +73,10 @@ class ContentAssistantOrchestrator
             : null;
 
         abort_if(! $target, 422, 'Conversation has no content target.');
+
+        $message = trim($message);
+
+        abort_if($message === '' && $attachments === [], 422, 'Provide a message or at least one image.');
 
         if ($idempotencyKey) {
             $existing = ContentProposal::query()->where('idempotency_key', $idempotencyKey)->first();
@@ -76,23 +88,35 @@ class ContentAssistantOrchestrator
         AiMessage::query()->create([
             'conversation_id' => $conversation->id,
             'role' => AiMessageRole::User,
-            'content' => $message,
+            'content' => $message !== '' ? $message : '[Image reference attached]',
+            'metadata' => $attachments !== [] ? ['attachments' => $attachments] : null,
         ]);
 
-        $messages = $conversation->messages()->get()->map(fn (AiMessage $item) => [
+        $messages = $conversation->messages()->get()->map(fn (AiMessage $item): array => [
             'role' => $item->role->value,
             'content' => $item->content,
+            'attachments' => $item->attachments(),
         ])->all();
+
+        $latestUserMessage = $message !== ''
+            ? $message
+            : 'Review the attached image(s) and suggest relevant content updates.';
+
+        $context = array_merge(
+            $this->contextBuilder->build($target),
+            ['latest_attachments' => $attachments],
+        );
 
         $request = new ContentAssistantRequest(
             conversation: $conversation,
             target: $target,
             targetType: $conversation->target_type,
             messages: $messages,
-            latestUserMessage: $message,
-            context: $this->contextBuilder->build($target),
+            latestUserMessage: $latestUserMessage,
+            context: $context,
             approvedSources: $this->contextBuilder->approvedSourcesFor($conversation->target_type),
             assistantInstructions: $this->contextBuilder->assistantInstructions(),
+            latestAttachments: $attachments,
         );
 
         try {

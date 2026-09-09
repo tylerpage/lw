@@ -27,4 +27,12 @@ class AiMessage extends Model
     {
         return $this->belongsTo(AiConversation::class, 'conversation_id');
     }
+
+    /**
+     * @return array<int, array{path: string, url: string, original_name?: string, mime_type?: string, size?: int}>
+     */
+    public function attachments(): array
+    {
+        return $this->metadata['attachments'] ?? [];
+    }
 }

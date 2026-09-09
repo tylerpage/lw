@@ -9,8 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 readonly class ContentAssistantRequest
 {
     /**
-     * @param  array<int, array{role: string, content: string}>  $messages
+     * @param  array<int, array{role: string, content: string, attachments?: array<int, array<string, mixed>>}>  $messages
      * @param  array<int, array<string, mixed>>  $approvedSources
+     * @param  array<int, array{path: string, url: string, original_name?: string, mime_type?: string, size?: int}>  $latestAttachments
      */
     public function __construct(
         public AiConversation $conversation,
@@ -21,5 +22,6 @@ readonly class ContentAssistantRequest
         public array $context,
         public array $approvedSources,
         public ?string $assistantInstructions,
+        public array $latestAttachments = [],
     ) {}
 }

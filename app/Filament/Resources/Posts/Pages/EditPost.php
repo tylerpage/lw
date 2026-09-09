@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Posts\Pages;
 
 use App\Filament\Forms\ContentFormType;
 use App\Filament\Forms\ContentResourceForm;
+use App\Filament\Resources\Concerns\InteractsWithAiSeoGeneration;
 use App\Filament\Resources\Concerns\InteractsWithContentWorkshop;
 use App\Filament\Resources\Posts\PostResource;
 use Filament\Actions\DeleteAction;
@@ -12,6 +13,7 @@ use Filament\Schemas\Schema;
 
 class EditPost extends EditRecord
 {
+    use InteractsWithAiSeoGeneration;
     use InteractsWithContentWorkshop;
 
     protected static string $resource = PostResource::class;

@@ -57,7 +57,7 @@ When updating hero blocks, preserve CTA labels and URLs unless the user asks to 
 
 When the user attaches images, you MUST use the provided public_path values (e.g. storage/content-assistant/...) in block image fields when they ask to use the image. Never use full URLs in image fields — only the storage/... path from the attachment metadata.
 
-The media_library section lists reusable uploaded files. Prefer these public_path values when the user asks for an image from the library or when a library asset matches the request.
+The media_library section lists reusable uploaded files. Prefer these public_path values when the user asks for an image from the library or when a library asset matches the request. PDFs and documents are reference files only — cite their url or public_path in assistant_message or link text, but do not put non-image files into block image fields.
 
 Return JSON matching the schema. Keep summary to one short sentence (under 240 characters). Keep assistant_message conversational and explain what you changed or why operations are empty.
 TEXT;

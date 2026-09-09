@@ -4,6 +4,7 @@ namespace App\Filament\Resources\MediaAssets;
 
 use App\Filament\Resources\MediaAssets\Pages\ManageMediaAssets;
 use App\Models\MediaAsset;
+use App\Support\MediaLibraryMimeTypes;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -14,6 +15,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -22,7 +24,7 @@ class MediaAssetResource extends Resource
 {
     protected static ?string $model = MediaAsset::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPhoto;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedFolder;
 
     protected static ?string $navigationLabel = 'Media Library';
 
@@ -43,16 +45,18 @@ class MediaAssetResource extends Resource
                     ->label('File')
                     ->disk($disk)
                     ->directory($directory)
-                    ->image()
+                    ->acceptedFileTypes(MediaLibraryMimeTypes::forFileUpload())
                     ->required(fn (?MediaAsset $record): bool => $record === null)
-                    ->maxSize(config('content-assistant.media_library.max_file_size_kb', 10240))
+                    ->maxSize(config('content-assistant.media_library.max_file_size_kb', 20480))
+                    ->helperText(MediaLibraryMimeTypes::helperText())
                     ->columnSpanFull(),
                 TextInput::make('title')
                     ->maxLength(255),
                 TextInput::make('alt_text')
                     ->label('Alt text')
                     ->maxLength(255)
-                    ->helperText('Used when this image is inserted into content blocks.'),
+                    ->helperText('Used when this image is inserted into content blocks.')
+                    ->visible(fn (?MediaAsset $record): bool => $record?->isImage() ?? true),
             ]);
     }
 
@@ -63,10 +67,25 @@ class MediaAssetResource extends Resource
                 ImageColumn::make('path')
                     ->label('Preview')
                     ->disk(fn (MediaAsset $record): string => $record->disk)
-                    ->square(),
+                    ->square()
+                    ->visible(fn (MediaAsset $record): bool => $record->isImage()),
+                IconColumn::make('file_type')
+                    ->label('Type')
+                    ->state(fn (): string => 'file')
+                    ->icon(fn (MediaAsset $record): string|BackedEnum => match ($record->fileTypeLabel()) {
+                        'PDF' => Heroicon::OutlinedDocumentText,
+                        'Document' => Heroicon::OutlinedDocument,
+                        'Text' => Heroicon::OutlinedDocumentText,
+                        default => Heroicon::OutlinedPaperClip,
+                    })
+                    ->visible(fn (MediaAsset $record): bool => ! $record->isImage()),
                 TextColumn::make('title')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('format')
+                    ->label('Format')
+                    ->state(fn (MediaAsset $record): string => $record->fileTypeLabel())
+                    ->badge(),
                 TextColumn::make('public_path')
                     ->label('CMS path')
                     ->state(fn (MediaAsset $record): string => $record->publicPath())

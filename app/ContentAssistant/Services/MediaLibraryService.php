@@ -3,6 +3,7 @@
 namespace App\ContentAssistant\Services;
 
 use App\Models\MediaAsset;
+use App\Support\MediaLibraryMimeTypes;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -24,6 +25,7 @@ class MediaLibraryService
                 'url' => $asset->url(),
                 'alt_text' => $asset->alt_text,
                 'mime_type' => $asset->mime_type,
+                'kind' => $asset->isVisionAttachment() ? 'image' : 'reference',
             ])
             ->all();
     }
@@ -49,13 +51,45 @@ class MediaLibraryService
     /**
      * @return Collection<int, MediaAsset>
      */
-    public function selectableImages(int $limit = 40): Collection
+    public function selectableAssets(int $limit = 40): Collection
     {
         return MediaAsset::query()
-            ->where('mime_type', 'like', 'image/%')
             ->latest()
             ->limit($limit)
-            ->get();
+            ->get()
+            ->filter(fn (MediaAsset $asset): bool => MediaLibraryMimeTypes::accepts(
+                $asset->mime_type,
+                $asset->original_filename,
+            ))
+            ->values();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $attachments
+     * @return array<int, array<string, mixed>>
+     */
+    public function visionAttachments(array $attachments): array
+    {
+        return array_values(array_filter(
+            $attachments,
+            fn (array $attachment): bool => MediaLibraryMimeTypes::isVisionAttachment(
+                $attachment['mime_type'] ?? null,
+            ),
+        ));
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $attachments
+     * @return array<int, array<string, mixed>>
+     */
+    public function referenceAttachments(array $attachments): array
+    {
+        return array_values(array_filter(
+            $attachments,
+            fn (array $attachment): bool => ! MediaLibraryMimeTypes::isVisionAttachment(
+                $attachment['mime_type'] ?? null,
+            ),
+        ));
     }
 
     public function resolvePublicPath(string $value): ?string

@@ -8,6 +8,7 @@ use App\ContentAssistant\DTO\ContentAssistantRequest;
 use App\ContentAssistant\DTO\ContentProposalData;
 use App\ContentAssistant\Support\ContentProposalPromptBuilder;
 use App\ContentAssistant\Support\ContentProposalResponseMapper;
+use App\Support\MediaLibraryMimeTypes;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Exceptions\ProviderConnectionException;
 use Laravel\Ai\Files\Image;
@@ -85,6 +86,9 @@ class LaravelAiContentAssistantGateway implements ContentAssistantGateway
 
         return collect($request->latestAttachments)
             ->filter(fn (array $attachment): bool => filled($attachment['path'] ?? null))
+            ->filter(fn (array $attachment): bool => MediaLibraryMimeTypes::isVisionAttachment(
+                $attachment['mime_type'] ?? null,
+            ))
             ->map(fn (array $attachment): Image => Image::fromStorage((string) $attachment['path'], $disk))
             ->values()
             ->all();

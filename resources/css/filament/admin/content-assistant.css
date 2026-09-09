@@ -130,6 +130,18 @@
     @apply aspect-square h-full w-full object-cover;
 }
 
+.content-assistant__library-file {
+    @apply flex aspect-square h-full w-full flex-col items-center justify-center gap-2 bg-gray-100 p-2 text-center dark:bg-white/5;
+}
+
+.content-assistant__library-file-badge {
+    @apply rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-700 dark:bg-white/10 dark:text-gray-200;
+}
+
+.content-assistant__library-file-name {
+    @apply line-clamp-3 text-xs text-gray-700 dark:text-gray-200;
+}
+
 .content-assistant__attachment-picker {
     @apply mt-3 space-y-2;
 }

@@ -204,18 +204,25 @@
                                                 'content-assistant__library-item',
                                                 'content-assistant__library-item--selected' => $selected,
                                             ])
-                                            title="{{ $asset->title }}"
+                                            title="{{ $asset->title }} ({{ $asset->fileTypeLabel() }})"
                                         >
-                                            <img
-                                                src="{{ $asset->url() }}"
-                                                alt="{{ $asset->alt_text ?? $asset->title }}"
-                                                class="content-assistant__library-image"
-                                            >
+                                            @if($asset->isImage())
+                                                <img
+                                                    src="{{ $asset->url() }}"
+                                                    alt="{{ $asset->alt_text ?? $asset->title }}"
+                                                    class="content-assistant__library-image"
+                                                >
+                                            @else
+                                                <div class="content-assistant__library-file">
+                                                    <span class="content-assistant__library-file-badge">{{ $asset->fileTypeLabel() }}</span>
+                                                    <span class="content-assistant__library-file-name">{{ $asset->title }}</span>
+                                                </div>
+                                            @endif
                                         </button>
                                     @endforeach
                                 </div>
                                 <p class="content-assistant__hint">
-                                    Select reusable images uploaded in the Media Library.
+                                    Select images, PDFs, or documents from the Media Library as reference files for the assistant.
                                 </p>
                             </div>
                         @endif

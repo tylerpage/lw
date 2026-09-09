@@ -167,7 +167,7 @@ class ContentAssistant extends FilamentPage
 
     public function getLibraryAssetsProperty(): Collection
     {
-        return app(MediaLibraryService::class)->selectableImages();
+        return app(MediaLibraryService::class)->selectableAssets();
     }
 
     public function updatedTargetType(): void
@@ -215,13 +215,13 @@ class ContentAssistant extends FilamentPage
 
         if (trim($this->message) === '' && $attachmentCount === 0) {
             throw ValidationException::withMessages([
-                'message' => 'Add a message, pick a library image, or attach a file.',
+                'message' => 'Add a message, pick a library file, or attach an image.',
             ]);
         }
 
         if ($attachmentCount > $maxFiles) {
             throw ValidationException::withMessages([
-                'attachments' => "You can include up to {$maxFiles} images per message.",
+                'attachments' => "You can include up to {$maxFiles} files per message.",
             ]);
         }
 

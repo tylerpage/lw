@@ -109,4 +109,63 @@ class MediaLibraryTest extends TestCase
         $this->assertSame('Library Image', $assets[0]['title']);
         $this->assertSame('storage/'.$path, $assets[0]['public_path']);
     }
+
+    public function test_pdf_can_be_stored_in_media_library(): void
+    {
+        $path = UploadedFile::fake()->create('migration-checklist.pdf', 120, 'application/pdf')
+            ->store('media-library', 'public');
+
+        $asset = MediaAsset::query()->create([
+            'user_id' => $this->editor->id,
+            'path' => $path,
+            'disk' => 'public',
+            'original_filename' => 'migration-checklist.pdf',
+            'mime_type' => 'application/pdf',
+            'title' => 'Migration Checklist',
+        ]);
+
+        $this->assertFalse($asset->isImage());
+        $this->assertSame('PDF', $asset->fileTypeLabel());
+        $this->assertSame('reference', $asset->toAssistantAttachment()['kind']);
+    }
+
+    public function test_pdf_library_asset_is_included_in_assistant_message_metadata(): void
+    {
+        $page = Page::query()->where('slug', 'home')->firstOrFail();
+        $path = UploadedFile::fake()->create('notes.pdf', 50, 'application/pdf')
+            ->store('media-library', 'public');
+
+        $asset = MediaAsset::query()->create([
+            'user_id' => $this->editor->id,
+            'path' => $path,
+            'disk' => 'public',
+            'original_filename' => 'notes.pdf',
+            'mime_type' => 'application/pdf',
+        ]);
+
+        $orchestrator = app(ContentAssistantOrchestrator::class);
+
+        $conversation = $orchestrator->startConversation(
+            $this->editor,
+            ContentTargetType::Page,
+            $page->id,
+        );
+
+        $orchestrator->sendMessage(
+            $conversation,
+            $this->editor,
+            'Use this PDF as reference for the hero copy.',
+            null,
+            app(MediaLibraryService::class)->attachmentsForIds([$asset->id]),
+        );
+
+        $attachment = AiMessage::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('role', 'user')
+            ->firstOrFail()
+            ->attachments()[0];
+
+        $this->assertSame('application/pdf', $attachment['mime_type']);
+        $this->assertSame('reference', $attachment['kind']);
+    }
 }

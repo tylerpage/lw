@@ -6,6 +6,7 @@ use App\ContentAssistant\Contracts\ContentAssistantGateway;
 use App\ContentAssistant\DTO\ContentAssistantRequest;
 use App\ContentAssistant\DTO\ContentProposalData;
 use App\Models\Page;
+use Illuminate\Support\Str;
 
 class FakeContentAssistantGateway implements ContentAssistantGateway
 {
@@ -42,10 +43,39 @@ class FakeContentAssistantGateway implements ContentAssistantGateway
             return $this->seoProposal($context, $message);
         }
 
+        if ($request->overrideGuardrails) {
+            return $this->overrideProposal($request, $context);
+        }
+
         return new ContentProposalData(
             summary: 'No structured change generated for this request.',
             operations: [],
             assistantMessage: 'Tell me which page section to update—for example, "Make the homepage hero subheadline less formal while keeping both CTAs."',
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function overrideProposal(ContentAssistantRequest $request, array $context): ContentProposalData
+    {
+        $blocks = $context['blocks'] ?? $context['body'] ?? [];
+        $content = trim($request->latestUserMessage);
+
+        return new ContentProposalData(
+            summary: 'Apply the editor override and add the requested content as a new section.',
+            operations: [[
+                'op' => 'insert_block',
+                'index' => count($blocks),
+                'block' => [
+                    'type' => 'rich_text',
+                    'enabled' => true,
+                    'anchor_id' => 'editor-override-'.Str::lower(Str::random(8)),
+                    'content' => $content,
+                ],
+            ]],
+            warnings: ['Applied with editor override. Review factual claims before publishing.'],
+            assistantMessage: 'I applied your request with editor override. Review the new section in the diff before saving.',
         );
     }
 

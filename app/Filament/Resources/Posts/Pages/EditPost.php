@@ -29,7 +29,6 @@ class EditPost extends EditRecord
     {
         return [
             ...$this->getContentWorkshopHeaderActions(),
-            ...$this->getContentRevisionHeaderActions(),
             DeleteAction::make(),
         ];
     }

@@ -254,6 +254,22 @@
                                 <li>{{ $error }}</li>
                             @endforeach
                         </ul>
+
+                        @if ($this->canRequestOverride())
+                            <div class="mt-3 space-y-2">
+                                <p class="text-sm text-gray-700 dark:text-gray-200">
+                                    If you still want this change, ask the assistant to apply your request anyway.
+                                </p>
+                                <x-filament::button
+                                    wire:click="requestOverride"
+                                    wire:confirm="Ask the assistant to implement your request even if it shifts the content focus? Safety rules still apply (no code or layout changes)."
+                                    color="warning"
+                                    size="sm"
+                                >
+                                    Apply request anyway
+                                </x-filament::button>
+                            </div>
+                        @endif
                     </div>
                 @endif
 
@@ -328,9 +344,20 @@
                     @endforelse
                 </div>
 
-                @if ($this->hasProposal())
+                @if ($this->hasReviewableProposal())
                     <x-slot:footer>
                         <div class="content-assistant__actions">
+                            @if ($this->canRequestOverride() && $validationErrors === [])
+                                <x-filament::button
+                                    wire:click="requestOverride"
+                                    wire:confirm="Ask the assistant to implement your request even if it shifts the content focus? Safety rules still apply (no code or layout changes)."
+                                    class="w-full"
+                                    color="warning"
+                                >
+                                    Apply request anyway
+                                </x-filament::button>
+                            @endif
+
                             @if ($this->canApproveAndPublish())
                                 <x-filament::button
                                     wire:click="approveAndPublish"
@@ -350,8 +377,10 @@
                                 Save as draft
                             </x-filament::button>
 
-                            @if (! $this->canSaveDraft())
+                            @if (! $this->canSaveDraft() && ! $this->canRequestOverride())
                                 <p class="content-assistant__hint text-center">Validate the proposal before saving or publishing.</p>
+                            @elseif (! $this->canSaveDraft() && $this->canRequestOverride())
+                                <p class="content-assistant__hint text-center">The assistant declined or could not apply your request. Use override to retry.</p>
                             @elseif (! $this->canApproveAndPublish())
                                 <p class="content-assistant__hint text-center">Only editors can approve and publish. You can still save a draft.</p>
                             @endif

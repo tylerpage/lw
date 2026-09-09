@@ -23,6 +23,7 @@ class ProcessAssistantMessageJob implements ShouldQueue
         public int $userId,
         public string $idempotencyKey,
         public array $attachments = [],
+        public bool $overrideGuardrails = false,
     ) {}
 
     public function handle(ContentAssistantOrchestrator $orchestrator): void
@@ -37,6 +38,7 @@ class ProcessAssistantMessageJob implements ShouldQueue
                 user: $user,
                 idempotencyKey: $this->idempotencyKey,
                 attachments: $this->attachments,
+                overrideGuardrails: $this->overrideGuardrails,
             );
 
             $validation = $orchestrator->validateProposal($proposal->fresh('operations'), $user);

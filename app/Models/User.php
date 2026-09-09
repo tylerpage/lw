@@ -36,6 +36,11 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
+        return $this->canBypassMaintenance();
+    }
+
+    public function canBypassMaintenance(): bool
+    {
         return $this->hasAnyRole([
             UserRole::SuperAdmin->value,
             UserRole::Editor->value,

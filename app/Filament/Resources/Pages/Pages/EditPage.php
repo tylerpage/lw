@@ -29,7 +29,6 @@ class EditPage extends EditRecord
     {
         return [
             ...$this->getContentWorkshopHeaderActions(),
-            ...$this->getContentRevisionHeaderActions(),
             DeleteAction::make(),
         ];
     }

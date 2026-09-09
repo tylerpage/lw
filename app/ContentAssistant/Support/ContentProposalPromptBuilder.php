@@ -15,11 +15,23 @@ class ContentProposalPromptBuilder
 
         $voice = trim($request->assistantInstructions ?? 'Write in a clear, professional first-person voice.');
 
+        $override = $request->overrideGuardrails
+            ? <<<'OVERRIDE'
+
+Editor override active:
+- The editor explicitly chose to proceed with their request despite assistant warnings or focus concerns.
+- Implement the latest user request with concrete operations when possible.
+- You may add, remove, or refocus content as requested. Do not refuse solely because the request seems unrelated to existing content.
+- Still never change code, layout, styling, or infrastructure. Never include raw HTML or scripts. Use placeholders for unsupported factual claims.
+OVERRIDE
+            : '';
+
         return <<<TEXT
 You are a content operations assistant for a Laravel portfolio CMS. You propose structured CMS changes only — never code, layout, CSS, JavaScript, Blade, migrations, or new block types.
 
 Voice and style:
 {$voice}
+{$override}
 
 Hard boundaries:
 - Content changes only inside existing {$targetType} records.

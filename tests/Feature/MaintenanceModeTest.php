@@ -2,8 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Enums\UserRole;
+use App\Models\Page;
 use App\Models\SiteSetting;
+use App\Models\User;
+use App\Support\PreviewUrl;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class MaintenanceModeTest extends TestCase
@@ -63,5 +68,53 @@ class MaintenanceModeTest extends TestCase
         SiteSetting::set('maintenance_mode', false);
 
         $this->get('/')->assertOk();
+    }
+
+    public function test_signed_preview_bypasses_maintenance_mode(): void
+    {
+        SiteSetting::set('maintenance_mode', true);
+        SiteSetting::set('maintenance_allowlist_ips', []);
+
+        $page = Page::query()->where('slug', 'home')->firstOrFail();
+
+        $this->get(PreviewUrl::for($page))
+            ->assertOk()
+            ->assertSee($page->title, false);
+    }
+
+    public function test_unsigned_preview_is_blocked_during_maintenance(): void
+    {
+        SiteSetting::set('maintenance_mode', true);
+        SiteSetting::set('maintenance_allowlist_ips', []);
+
+        $page = Page::query()->where('slug', 'home')->firstOrFail();
+
+        $this->get(route('preview', ['type' => 'page', 'id' => $page->id]))
+            ->assertStatus(503);
+    }
+
+    public function test_authenticated_staff_can_view_public_site_during_maintenance(): void
+    {
+        foreach (UserRole::cases() as $role) {
+            Role::findOrCreate($role->value);
+        }
+
+        SiteSetting::set('maintenance_mode', true);
+        SiteSetting::set('maintenance_allowlist_ips', []);
+
+        $admin = User::query()->where('email', 'admin@example.com')->firstOrFail();
+        $admin->assignRole(UserRole::SuperAdmin->value);
+
+        $this->actingAs($admin)
+            ->get('/')
+            ->assertOk();
+    }
+
+    public function test_guest_still_sees_maintenance_when_not_allowlisted(): void
+    {
+        SiteSetting::set('maintenance_mode', true);
+        SiteSetting::set('maintenance_allowlist_ips', []);
+
+        $this->get('/about')->assertStatus(503);
     }
 }

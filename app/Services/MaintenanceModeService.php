@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\SiteSetting;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class MaintenanceModeService
@@ -44,7 +45,31 @@ class MaintenanceModeService
             return false;
         }
 
-        return ! $this->isAllowedIp($request->ip());
+        if ($this->isAllowedIp($request->ip())) {
+            return false;
+        }
+
+        if ($this->isSignedPreviewRequest($request)) {
+            return false;
+        }
+
+        if ($this->requestHasAuthenticatedStaff($request)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function isSignedPreviewRequest(Request $request): bool
+    {
+        return $request->routeIs('preview') && $request->hasValidSignature();
+    }
+
+    public function requestHasAuthenticatedStaff(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user instanceof User && $user->canBypassMaintenance();
     }
 
     /**

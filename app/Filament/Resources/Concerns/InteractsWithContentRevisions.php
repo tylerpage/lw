@@ -19,7 +19,7 @@ trait InteractsWithContentRevisions
     /**
      * @return array<int, Action>
      */
-    protected function getContentRevisionHeaderActions(): array
+    protected function getContentRevisionToolActions(): array
     {
         return [
             Action::make('versionHistory')

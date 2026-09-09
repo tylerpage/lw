@@ -94,6 +94,63 @@ class ContentAssistantTest extends TestCase
         $this->assertDatabaseHas('page_revisions', ['page_id' => $page->id, 'id' => $page->published_revision_id]);
     }
 
+    public function test_override_regenerates_proposal_for_declined_request(): void
+    {
+        $page = Page::query()->where('slug', 'home')->firstOrFail();
+        $orchestrator = app(ContentAssistantOrchestrator::class);
+
+        $conversation = $orchestrator->startConversation(
+            $this->editor,
+            ContentTargetType::Page,
+            $page->id,
+        );
+
+        $initial = $orchestrator->sendMessage(
+            $conversation,
+            $this->editor,
+            'Add a section about Taylor Swift to this page.',
+        );
+
+        $initialValidation = $orchestrator->validateProposal($initial, $this->editor);
+
+        $this->assertFalse($initialValidation['valid']);
+        $this->assertSame([], $initial->payload['operations']);
+
+        $override = $orchestrator->regenerateWithOverride($conversation->fresh(), $this->editor);
+        $overrideValidation = $orchestrator->validateProposal($override, $this->editor);
+
+        $this->assertTrue($overrideValidation['valid']);
+        $this->assertNotEmpty($override->payload['operations']);
+        $this->assertSame(ContentProposalStatus::Rejected, $initial->fresh()->status);
+        $this->assertTrue(
+            ContentAssistantAuditEvent::query()->where('event_type', 'assistant_override_requested')->exists()
+        );
+    }
+
+    public function test_override_does_not_bypass_unsupported_code_requests(): void
+    {
+        $page = Page::query()->where('slug', 'home')->firstOrFail();
+        $orchestrator = app(ContentAssistantOrchestrator::class);
+
+        $conversation = $orchestrator->startConversation(
+            $this->editor,
+            ContentTargetType::Page,
+            $page->id,
+        );
+
+        $orchestrator->sendMessage(
+            $conversation,
+            $this->editor,
+            'Change the Tailwind CSS layout of the homepage header.',
+        );
+
+        $override = $orchestrator->regenerateWithOverride($conversation->fresh(), $this->editor);
+        $validation = $orchestrator->validateProposal($override, $this->editor);
+
+        $this->assertFalse($validation['valid']);
+        $this->assertSame([], $override->payload['operations']);
+    }
+
     public function test_unsupported_code_request_produces_no_operations(): void
     {
         $page = Page::query()->where('slug', 'home')->firstOrFail();

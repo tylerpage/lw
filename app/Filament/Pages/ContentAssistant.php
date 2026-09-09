@@ -370,6 +370,43 @@ class ContentAssistant extends FilamentPage
         Notification::make()->title('Proposal rejected')->success()->send();
     }
 
+    public function requestOverride(ContentAssistantOrchestrator $orchestrator): void
+    {
+        abort_if(! $this->conversationId, 422);
+        abort_unless($this->canRequestOverride(), 422);
+
+        $conversation = AiConversation::query()
+            ->where('user_id', auth()->id())
+            ->findOrFail($this->conversationId);
+
+        $proposal = $orchestrator->regenerateWithOverride($conversation, auth()->user());
+
+        $this->resetValidationState();
+        $this->conversationId = $conversation->id;
+
+        if ($proposal === null) {
+            $this->isProcessing = true;
+            $this->processingStatus = 'Applying your request with override…';
+            $this->processingStartedAt = now()->toIso8601String();
+
+            Notification::make()
+                ->title('Override requested')
+                ->body('The assistant is retrying your request without focus restrictions.')
+                ->success()
+                ->send();
+
+            return;
+        }
+
+        $result = $orchestrator->validateProposal($proposal->fresh('operations'), auth()->user());
+        $this->applyValidationResult($result);
+
+        Notification::make()
+            ->title($result['valid'] ? 'Override proposal ready' : 'Override still needs revision')
+            ->{$result['valid'] ? 'success' : 'warning'}()
+            ->send();
+    }
+
     public function removeAttachment(int $index): void
     {
         unset($this->attachments[$index]);
@@ -415,6 +452,32 @@ class ContentAssistant extends FilamentPage
     {
         return $this->latestProposal !== null
             && ($this->latestProposal->payload['operations'] ?? []) !== [];
+    }
+
+    public function hasReviewableProposal(): bool
+    {
+        if ($this->latestProposal === null) {
+            return false;
+        }
+
+        return in_array($this->latestProposal->status, [
+            ContentProposalStatus::Proposed,
+            ContentProposalStatus::NeedsRevision,
+            ContentProposalStatus::Validated,
+        ], true);
+    }
+
+    public function canRequestOverride(): bool
+    {
+        if ($this->isProcessing || ! $this->hasReviewableProposal()) {
+            return false;
+        }
+
+        if ($this->validationErrors !== []) {
+            return true;
+        }
+
+        return $this->latestProposal?->status === ContentProposalStatus::NeedsRevision;
     }
 
     public function canSaveDraft(): bool

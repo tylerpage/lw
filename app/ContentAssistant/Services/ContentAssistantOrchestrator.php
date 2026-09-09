@@ -121,11 +121,67 @@ class ContentAssistantOrchestrator
     /**
      * @param  array<int, array{path: string, url: string, original_name?: string, mime_type?: string, size?: int}>  $attachments
      */
+    public function regenerateWithOverride(AiConversation $conversation, User $user): ?ContentProposal
+    {
+        abort_unless($conversation->user_id === $user->id, 403);
+
+        $target = $conversation->target_type && $conversation->target_id
+            ? ContentTargetResolver::find($conversation->target_type, $conversation->target_id)
+            : null;
+
+        abort_if(! $target, 422, 'Conversation has no content target.');
+
+        $latestProposal = $conversation->latestProposal;
+
+        if ($latestProposal && in_array($latestProposal->status, [
+            ContentProposalStatus::Proposed,
+            ContentProposalStatus::NeedsRevision,
+        ], true)) {
+            $latestProposal->update(['status' => ContentProposalStatus::Rejected]);
+        }
+
+        ContentAssistantAuditEvent::record('assistant_override_requested', $user, $conversation, [
+            'target_type' => $conversation->target_type?->value,
+            'target_id' => $conversation->target_id,
+        ]);
+
+        $latestUser = $conversation->messages()
+            ->where('role', AiMessageRole::User)
+            ->latest()
+            ->first();
+
+        abort_if(! $latestUser, 422, 'No user message found to retry.');
+
+        $attachments = $latestUser->attachments();
+        $idempotencyKey = $this->generateIdempotencyKey();
+
+        if (config('content-assistant.async')) {
+            ProcessAssistantMessageJob::dispatch(
+                conversationId: $conversation->id,
+                userId: $user->id,
+                idempotencyKey: $idempotencyKey,
+                attachments: $attachments,
+                overrideGuardrails: true,
+            );
+
+            return null;
+        }
+
+        return $this->generateProposal(
+            conversationId: $conversation->id,
+            user: $user,
+            idempotencyKey: $idempotencyKey,
+            attachments: $attachments,
+            overrideGuardrails: true,
+        );
+    }
+
     public function generateProposal(
         int $conversationId,
         User $user,
         ?string $idempotencyKey = null,
         array $attachments = [],
+        bool $overrideGuardrails = false,
     ): ContentProposal {
         $conversation = AiConversation::query()->findOrFail($conversationId);
         abort_unless($conversation->user_id === $user->id, 403);
@@ -173,6 +229,7 @@ class ContentAssistantOrchestrator
             approvedSources: $this->contextBuilder->approvedSourcesFor($conversation->target_type),
             assistantInstructions: $this->contextBuilder->assistantInstructions(),
             latestAttachments: $attachments,
+            overrideGuardrails: $overrideGuardrails,
         );
 
         try {

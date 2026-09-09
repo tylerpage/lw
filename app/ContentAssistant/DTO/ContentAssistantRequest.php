@@ -23,5 +23,6 @@ readonly class ContentAssistantRequest
         public array $approvedSources,
         public ?string $assistantInstructions,
         public array $latestAttachments = [],
+        public bool $overrideGuardrails = false,
     ) {}
 }

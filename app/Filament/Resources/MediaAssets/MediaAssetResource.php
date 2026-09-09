@@ -66,9 +66,9 @@ class MediaAssetResource extends Resource
             ->columns([
                 ImageColumn::make('path')
                     ->label('Preview')
-                    ->disk(fn (MediaAsset $record): string => $record->disk)
+                    ->disk(fn (?MediaAsset $record): string => $record?->disk ?? config('content-assistant.media_library.disk', 'public'))
                     ->square()
-                    ->visible(fn (MediaAsset $record): bool => $record->isImage()),
+                    ->visible(fn (?MediaAsset $record): bool => $record === null || $record->isImage()),
                 IconColumn::make('file_type')
                     ->label('Type')
                     ->state(fn (): string => 'file')
@@ -78,7 +78,7 @@ class MediaAssetResource extends Resource
                         'Text' => Heroicon::OutlinedDocumentText,
                         default => Heroicon::OutlinedPaperClip,
                     })
-                    ->visible(fn (MediaAsset $record): bool => ! $record->isImage()),
+                    ->visible(fn (?MediaAsset $record): bool => $record === null || ! $record->isImage()),
                 TextColumn::make('title')
                     ->searchable()
                     ->sortable(),

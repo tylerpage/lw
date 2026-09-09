@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
+@source '../../app/Livewire/**/*.php';
+
+@theme {
+    --color-warm-white: #faf8f5;
+    --color-cream: #f5f0e8;
+    --color-blush: #e8d5d0;
+    --color-lavender: #e6e0f0;
+    --color-golden: #d4a853;
+    --color-charcoal: #2d2a32;
+    --color-plum: #4a3f55;
+
+    --font-display: 'Fraunces', ui-serif, Georgia, serif;
+    --font-body: 'Source Sans 3', ui-sans-serif, system-ui, sans-serif;
+}
+
+[x-cloak] {
+    display: none !important;
+}
+
+@layer components {
+    .site-logo {
+        display: block;
+        height: 75px;
+        width: auto;
+        max-width: 12rem;
+        object-fit: contain;
+        object-position: left center;
+        flex-shrink: 0;
+    }
+
+    @media (min-width: 640px) {
+        .site-logo {
+            max-width: 14rem;
+        }
+    }
+}
+
+@layer base {
+    body {
+        font-family: var(--font-body);
+    }
+
+    h1, h2, h3, h4 {
+        font-family: var(--font-display);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

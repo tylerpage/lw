@@ -14,6 +14,7 @@ use App\Models\Page;
 use App\Models\Post;
 use App\Models\Project;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page as FilamentPage;
 use Filament\Support\Enums\Width;
@@ -50,6 +51,9 @@ class ContentAssistant extends FilamentPage
     #[Url]
     public ?int $targetId = null;
 
+    #[Url]
+    public ?string $returnUrl = null;
+
     public string $message = '';
 
     public bool $isProcessing = false;
@@ -75,6 +79,23 @@ class ContentAssistant extends FilamentPage
         $user = auth()->user();
 
         return $user?->isSuperAdmin() || $user?->isEditor() || $user?->isAuthor();
+    }
+
+    /**
+     * @return array<int, Action>
+     */
+    protected function getHeaderActions(): array
+    {
+        if (! filled($this->returnUrl)) {
+            return [];
+        }
+
+        return [
+            Action::make('backToEditor')
+                ->label('Back to editor')
+                ->icon('heroicon-o-arrow-left')
+                ->url($this->returnUrl),
+        ];
     }
 
     public function mount(): void
@@ -300,11 +321,12 @@ class ContentAssistant extends FilamentPage
 
         $orchestrator->applyDraft($proposal, auth()->user());
 
-        Notification::make()
-            ->title('Draft saved')
-            ->body('Your changes are in the editor. The live site is unchanged until you publish.')
-            ->success()
-            ->send();
+        $this->notifyProposalApplied(
+            title: 'Draft saved',
+            body: filled($this->returnUrl)
+                ? 'Your changes are saved. Return to the editor to review or publish.'
+                : 'Your changes are in the editor. The live site is unchanged until you publish.',
+        );
     }
 
     public function approveAndPublish(ContentAssistantOrchestrator $orchestrator): void
@@ -320,11 +342,12 @@ class ContentAssistant extends FilamentPage
 
         $orchestrator->approveAndPublish($proposal, auth()->user());
 
-        Notification::make()
-            ->title('Changes published')
-            ->body('The approved updates are now live on the public site.')
-            ->success()
-            ->send();
+        $this->notifyProposalApplied(
+            title: 'Changes published',
+            body: filled($this->returnUrl)
+                ? 'The approved updates are live. Return to the editor if you need to make more changes.'
+                : 'The approved updates are now live on the public site.',
+        );
     }
 
     public function openPreview(ContentAssistantOrchestrator $orchestrator): void
@@ -466,5 +489,23 @@ class ContentAssistant extends FilamentPage
         $this->diff = [];
         $this->validationErrors = [];
         $this->validationWarnings = [];
+    }
+
+    private function notifyProposalApplied(string $title, string $body): void
+    {
+        $notification = Notification::make()
+            ->title($title)
+            ->body($body)
+            ->success();
+
+        if (filled($this->returnUrl)) {
+            $notification->actions([
+                Action::make('backToEditor')
+                    ->label('Back to editor')
+                    ->url($this->returnUrl),
+            ]);
+        }
+
+        $notification->send();
     }
 }

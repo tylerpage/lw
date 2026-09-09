@@ -1,5 +1,14 @@
 <x-filament-panels::page>
     <div class="content-assistant">
+        @if ($returnUrl)
+            <x-filament::section compact>
+                <p class="text-sm text-gray-600 dark:text-gray-300">
+                    Editing <strong class="text-gray-950 dark:text-white">{{ $this->targetLabel() }}</strong>.
+                    Use <strong class="text-gray-950 dark:text-white">Back to editor</strong> when you are done reviewing AI changes.
+                </p>
+            </x-filament::section>
+        @endif
+
         <x-filament::section heading="How this works" compact secondary>
             <ol class="content-assistant__steps">
                 <li class="content-assistant__step">

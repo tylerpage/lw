@@ -5,25 +5,17 @@ namespace App\Filament\Resources\Concerns;
 use App\ContentAssistant\Enums\ContentImportMode;
 use App\ContentAssistant\Services\ContentImportService;
 use App\ContentAssistant\Services\ContentWorkshopContextBuilder;
-use App\ContentAssistant\Support\ContentTargetResolver;
-use App\Enums\ContentTargetType;
-use App\Enums\PublishStatus;
-use App\Filament\Pages\ContentAssistant;
-use App\Models\Page;
-use App\Models\Post;
-use App\Models\Project;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Js;
 
 trait InteractsWithContentWorkshopOnCreate
 {
-    abstract protected function contentWorkshopTargetType(): ContentTargetType;
+    use InteractsWithContentAssistant;
 
     /**
      * @return array<int, Action>
@@ -31,6 +23,7 @@ trait InteractsWithContentWorkshopOnCreate
     protected function getContentWorkshopCreateHeaderActions(): array
     {
         return [
+            $this->openInContentAssistantFromCreateAction(),
             Action::make('copyAiContext')
                 ->label('Copy AI context')
                 ->icon('heroicon-o-clipboard-document')
@@ -44,7 +37,7 @@ trait InteractsWithContentWorkshopOnCreate
 
                     Notification::make()
                         ->title('AI context copied')
-                        ->body('Paste this into ChatGPT or use the AI Content Assistant.')
+                        ->body('Paste this into ChatGPT or open the AI Assistant to workshop content here.')
                         ->success()
                         ->send();
                 }),
@@ -65,21 +58,6 @@ trait InteractsWithContentWorkshopOnCreate
                         $filename,
                         ['Content-Type' => 'text/markdown'],
                     );
-                }),
-            Action::make('openInContentAssistant')
-                ->label('Open AI Assistant')
-                ->icon('heroicon-o-sparkles')
-                ->requiresConfirmation()
-                ->modalHeading('Create draft and open AI Assistant?')
-                ->modalDescription('Your current form values will be saved as a draft, then you will be redirected to the AI Content Assistant for this record.')
-                ->action(function (): void {
-                    $record = $this->createDraftForAssistant();
-
-                    $this->redirect(ContentAssistant::getUrl([
-                        'targetType' => ContentTargetResolver::fromModel($record)->value,
-                        'targetId' => $record->getKey(),
-                        'start' => true,
-                    ]));
                 }),
             Action::make('importContent')
                 ->label('Import content')
@@ -128,19 +106,5 @@ trait InteractsWithContentWorkshopOnCreate
                     $this->redirect(static::getResource()::getUrl('edit', ['record' => $record]));
                 }),
         ];
-    }
-
-    protected function createDraftForAssistant(): Page|Post|Project
-    {
-        $data = $this->form->getState(afterValidate: true);
-        $data['status'] = PublishStatus::Draft->value;
-
-        /** @var class-string<Model> $modelClass */
-        $modelClass = static::getResource()::getModel();
-
-        /** @var Page|Post|Project $record */
-        $record = $modelClass::query()->create($data);
-
-        return $record;
     }
 }

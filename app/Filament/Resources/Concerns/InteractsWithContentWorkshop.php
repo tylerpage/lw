@@ -6,6 +6,7 @@ use App\ContentAssistant\Enums\ContentImportMode;
 use App\ContentAssistant\Services\ContentImportService;
 use App\ContentAssistant\Services\ContentWorkshopContextBuilder;
 use App\ContentAssistant\Support\ContentTargetResolver;
+use App\Enums\ContentTargetType;
 use App\Enums\PublishStatus;
 use App\Support\PreviewUrl;
 use Filament\Actions\Action;
@@ -18,12 +19,15 @@ use Illuminate\Support\Js;
 
 trait InteractsWithContentWorkshop
 {
+    use InteractsWithContentAssistant;
+
     /**
      * @return array<int, Action>
      */
     protected function getContentWorkshopHeaderActions(): array
     {
         return [
+            $this->openInContentAssistantAction(),
             Action::make('preview')
                 ->label('Preview')
                 ->icon('heroicon-o-eye')
@@ -128,6 +132,11 @@ trait InteractsWithContentWorkshop
                         ->send();
                 }),
         ];
+    }
+
+    protected function contentWorkshopTargetType(): ContentTargetType
+    {
+        return ContentTargetResolver::fromModel($this->getRecord());
     }
 
     /**

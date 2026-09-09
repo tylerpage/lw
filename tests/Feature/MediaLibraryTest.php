@@ -129,6 +129,25 @@ class MediaLibraryTest extends TestCase
         $this->assertSame('reference', $asset->toAssistantAttachment()['kind']);
     }
 
+    public function test_deleting_media_asset_does_not_delete_underlying_file(): void
+    {
+        $path = UploadedFile::fake()->image('keep-me.jpg')->store('media-library', 'public');
+
+        $asset = MediaAsset::query()->create([
+            'user_id' => $this->editor->id,
+            'path' => $path,
+            'disk' => 'public',
+            'original_filename' => 'keep-me.jpg',
+        ]);
+
+        Storage::disk('public')->assertExists($path);
+
+        $asset->delete();
+
+        $this->assertDatabaseMissing('media_assets', ['id' => $asset->id]);
+        Storage::disk('public')->assertExists($path);
+    }
+
     public function test_pdf_library_asset_is_included_in_assistant_message_metadata(): void
     {
         $page = Page::query()->where('slug', 'home')->firstOrFail();

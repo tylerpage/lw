@@ -41,10 +41,6 @@ class MediaAsset extends Model
                 throw new \InvalidArgumentException('This file type is not allowed in the media library.');
             }
         });
-
-        static::deleting(function (MediaAsset $asset): void {
-            Storage::disk(StorageUrl::resolveDisk($asset->path, $asset->disk))->delete($asset->path);
-        });
     }
 
     public function user(): BelongsTo

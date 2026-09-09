@@ -57,6 +57,22 @@ class MediaAssetResource extends Resource
                     ->maxLength(255)
                     ->helperText('Used when this image is inserted into content blocks.')
                     ->visible(fn (?MediaAsset $record): bool => $record?->isImage() ?? true),
+                TextInput::make('public_url')
+                    ->label('Public URL')
+                    ->readOnly()
+                    ->dehydrated(false)
+                    ->default(fn (?MediaAsset $record): ?string => $record?->url())
+                    ->helperText('Full bucket URL for sharing or external use. Content blocks still use the CMS path below.')
+                    ->visible(fn (?MediaAsset $record): bool => $record !== null)
+                    ->columnSpanFull(),
+                TextInput::make('cms_path')
+                    ->label('CMS path')
+                    ->readOnly()
+                    ->dehydrated(false)
+                    ->default(fn (?MediaAsset $record): ?string => $record?->publicPath())
+                    ->helperText('Use this storage/... path in content blocks and the AI assistant.')
+                    ->visible(fn (?MediaAsset $record): bool => $record !== null)
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -86,11 +102,19 @@ class MediaAssetResource extends Resource
                     ->label('Format')
                     ->state(fn (MediaAsset $record): string => $record->fileTypeLabel())
                     ->badge(),
+                TextColumn::make('url')
+                    ->label('Public URL')
+                    ->state(fn (MediaAsset $record): string => $record->url())
+                    ->copyable()
+                    ->copyMessage('URL copied')
+                    ->url(fn (MediaAsset $record): string => $record->url(), shouldOpenInNewTab: true)
+                    ->wrap(),
                 TextColumn::make('public_path')
                     ->label('CMS path')
                     ->state(fn (MediaAsset $record): string => $record->publicPath())
                     ->copyable()
                     ->copyMessage('Path copied')
+                    ->toggleable(isToggledHiddenByDefault: true)
                     ->wrap(),
                 TextColumn::make('mime_type')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -105,11 +129,15 @@ class MediaAssetResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->recordActions([
                 EditAction::make(),
-                DeleteAction::make(),
+                DeleteAction::make()
+                    ->modalHeading('Remove from Media Library')
+                    ->modalDescription('This removes the library entry only. The uploaded file stays in storage.'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->modalHeading('Remove from Media Library')
+                        ->modalDescription('This removes the selected library entries only. The uploaded files stay in storage.'),
                 ]),
             ]);
     }

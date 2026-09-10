@@ -2,6 +2,7 @@
 
 namespace App\ContentAssistant\Services;
 
+use App\Enums\PublishStatus;
 use App\Models\Page;
 use App\Models\PageRevision;
 use App\Models\Post;
@@ -59,6 +60,17 @@ class ContentRevisionService
     {
         $target->has_unpublished_changes = false;
         $target->published_revision_id = null;
+    }
+
+    public function publishPendingChanges(Page|Post $target, User $user): void
+    {
+        if ($target->has_unpublished_changes) {
+            $this->record($target, $user, 'publish', 'Published version');
+        }
+
+        $target->status = PublishStatus::Published;
+        $target->published_at = $target->published_at ?? now();
+        $this->clearUnpublishedChanges($target);
     }
 
     /**

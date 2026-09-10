@@ -36,6 +36,32 @@ trait InteractsWithContentRevisions
                 ]))
                 ->modalSubmitAction(false)
                 ->modalCancelActionLabel('Close'),
+            Action::make('publishPendingChanges')
+                ->label('Publish changes')
+                ->icon('heroicon-o-arrow-up-circle')
+                ->color('success')
+                ->requiresConfirmation()
+                ->visible(fn (): bool => $this->getRecord()->hasPendingDraft() && $this->canPublishContentChanges())
+                ->authorize(fn (): bool => $this->canPublishContentChanges())
+                ->modalHeading('Publish changes to the live site?')
+                ->modalDescription('This saves your current editor content and makes it visible on the public site.')
+                ->action(function (): void {
+                    $this->save(shouldRedirect: false, shouldSendSavedNotification: false);
+
+                    $record = $this->getRecord()->refresh();
+                    $service = app(ContentRevisionService::class);
+
+                    $service->publishPendingChanges($record, auth()->user());
+                    $record->save();
+
+                    $this->fillForm();
+
+                    Notification::make()
+                        ->title('Changes published')
+                        ->body('The public site now matches the editor.')
+                        ->success()
+                        ->send();
+                }),
             Action::make('discardDraftChanges')
                 ->label('Discard draft changes')
                 ->icon('heroicon-o-arrow-uturn-left')
@@ -107,12 +133,19 @@ trait InteractsWithContentRevisions
                 Placeholder::make('draft_status')
                     ->label('')
                     ->content(new HtmlString(
-                        '<p class="text-sm text-gray-600 dark:text-gray-300">Use <strong>Preview</strong> to review draft changes. Open <strong>Version history</strong> to compare or restore earlier snapshots.</p>'
+                        '<p class="text-sm text-gray-600 dark:text-gray-300">Use <strong>Preview</strong> to review draft changes, then <strong>Tools → Publish changes</strong> when ready. Open <strong>Version history</strong> to compare or restore earlier snapshots.</p>'
                     )),
             ])
             ->visible(fn (): bool => $this->getRecord()->hasPendingDraft())
             ->columnSpanFull()
             ->compact();
+    }
+
+    protected function canPublishContentChanges(): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null && ($user->isSuperAdmin() || $user->isEditor());
     }
 
     protected function previewUrlForRevision(PageRevision|PostRevision $revision): string

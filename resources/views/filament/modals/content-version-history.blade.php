@@ -57,7 +57,7 @@
                             size="sm"
                             color="gray"
                             wire:click="restoreContentRevision({{ $revision->id }})"
-                            wire:confirm="Restore this version into the editor? The live site will not change until you publish."
+                            wire:confirm="Restore this version into the editor? The live site will not change until you use Tools → Publish changes."
                         >
                             Restore to editor
                         </x-filament::button>
